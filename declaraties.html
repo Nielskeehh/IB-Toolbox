@@ -1,0 +1,716 @@
+<title>Declaraties · IB Toolbox</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#ffc700" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="shared/style.css" />
+<link rel="stylesheet" href="cropper.min.css" />
+<link rel="apple-touch-icon" href="icon-declaraties-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<script>window.CURRENT_TOOL = "declaraties";</script>
+<style>
+  .line-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .line-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .line-title { font-weight: 700; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .remove-line-btn { background: none; border: none; color: var(--red); font-size: 22px; cursor: pointer; line-height: 1; padding: 2px 6px; }
+  .line-computed { font-size: 13px; color: var(--muted); margin: -8px 0 14px; }
+  .split-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .split-row select, .split-row input { margin-bottom: 0; }
+  .split-row select { flex: 0 0 90px; }
+  .split-row input { flex: 1; }
+  .split-row .remove-split-btn { background: none; border: none; color: var(--red); font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 6px; flex-shrink: 0; }
+  .bon-preview { margin-bottom: 4px; }
+  .bon-preview img { max-width: 140px; border-radius: 8px; border: 1px solid var(--border); display: block; margin-bottom: 8px; }
+  .bon-preview .filelabel { font-size: 13px; color: var(--muted); padding: 8px; border: 1px dashed var(--border); border-radius: 8px; display: inline-block; margin-bottom: 8px; }
+  .bon-remove-btn { display: block; background: none; border: none; color: var(--red); font-size: 13px; cursor: pointer; text-decoration: underline; padding: 0; margin-bottom: 4px; }
+  .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
+  .totals-row.total { font-weight: 700; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 10px; font-size: 15px; }
+  .totals-row.muted { color: var(--muted); font-size: 13px; }
+</style>
+
+<header>
+  <button type="button" id="navBtn" title="Menu" aria-label="Menu">&#9776;</button>
+  <h1>Declaratie</h1>
+  <button type="button" id="settingsBtn" title="Instellingen" aria-label="Instellingen">&#9881;</button>
+</header>
+
+<main>
+  <div class="card">
+    <label for="van"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>Van</label>
+    <input type="text" id="van" list="vanlijst" placeholder="Bijv. Jan Jansen" autocomplete="off" />
+    <datalist id="vanlijst"></datalist>
+
+    <label for="iban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>IBAN</label>
+    <input type="text" id="iban" list="ibanlijst" placeholder="NL00 BANK 0123456789" autocomplete="off" />
+    <datalist id="ibanlijst"></datalist>
+
+    <label for="balie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"></rect><path d="M9 21v-4h6v4"></path><path d="M9 8h1M14 8h1M9 12h1M14 12h1"></path></svg>Kostenplaats</label>
+    <input type="text" id="balie" list="balielijst" placeholder="Vestiging of afdeling" autocomplete="off" style="margin-bottom:6px;" />
+    <div class="hint" style="margin-top:0; margin-bottom:0;">Vestiging of afdeling waarop deze kosten geboekt mogen worden.</div>
+    <datalist id="balielijst"></datalist>
+  </div>
+
+  <div id="linesContainer"></div>
+
+  <button type="button" class="btn btn-outline" id="addLineBtn" style="width:100%; margin-bottom:16px;">+ Regel toevoegen</button>
+
+  <div class="card">
+    <label style="margin-bottom:10px;">Totalen</label>
+    <div id="totalsGrid"></div>
+  </div>
+
+  <div class="card">
+    <button type="button" class="btn btn-primary" id="submitBtn">Declaratie genereren</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card" id="openstaandCard" style="display:none;">
+    <div class="card-header">
+      <label style="margin-bottom:0;">Openstaande declaraties</label>
+      <div style="display:flex; gap:14px;">
+        <button type="button" class="link-btn" id="openFolderBtn">Open map ↗</button>
+        <button type="button" class="link-btn" id="refreshOpenstaandBtn">Vernieuwen</button>
+      </div>
+    </div>
+    <div id="openstaandList"><div class="empty-hint">Laden...</div></div>
+    <div class="status" id="openstaandStatus"></div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="close-row"><button id="closeSettings">&times;</button></div>
+    <h2>Instellingen</h2>
+
+    <div class="dropbox-status" id="dbStatusLine">
+      <span class="dot off" id="dbDot"></span><span id="dbStatusText">Niet verbonden met Dropbox</span>
+    </div>
+
+    <label for="appKeyInput">Dropbox App key</label>
+    <input type="text" id="appKeyInput" placeholder="App key uit de Dropbox App Console" autocomplete="off" />
+    <div class="hint">Ga naar de Dropbox App Console, maak een Scoped App (Folder access), zet onder "Permissions" deze vijf vinkjes aan: files.content.write, files.content.read, files.metadata.read, sharing.write, sharing.read — en zet de redirect URI exact op dit adres. Al eerder verbonden met minder rechten? Vink de nieuwe rechten aan en klik hieronder op "Loskoppelen" gevolgd door opnieuw "Verbinden" — rechten worden pas bij het verbinden vastgelegd.</div>
+
+    <button type="button" class="btn btn-outline" id="connectBtn" style="width:100%; margin-bottom:10px;">Verbinden met Dropbox</button>
+    <button type="button" class="btn btn-danger" id="disconnectBtn" style="width:100%; display:none;">Loskoppelen</button>
+
+    <div class="status" id="settingsStatus"></div>
+  </div>
+</div>
+
+<div class="modal-overlay crop-modal" id="cropOverlay">
+  <div class="modal">
+    <h2>Bon bijsnijden</h2>
+    <div class="crop-container">
+      <img id="cropImage" alt="Bon" />
+    </div>
+    <div class="crop-actions">
+      <button type="button" class="btn btn-outline" id="cropCancelBtn">Annuleren</button>
+      <button type="button" class="btn btn-outline" id="cropSkipBtn">Hele foto gebruiken</button>
+      <button type="button" class="btn btn-primary" id="cropApplyBtn">Bijsnijden</button>
+    </div>
+  </div>
+</div>
+
+<template id="lineTemplate">
+  <div class="line-card">
+    <div class="line-card-header">
+      <span class="line-title">Declaratieregel</span>
+      <button type="button" class="remove-line-btn" title="Regel verwijderen">&times;</button>
+    </div>
+
+    <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Omschrijving</label>
+    <input type="text" class="f-omschrijving" placeholder="Bijv. lunch klantbezoek" autocomplete="off" />
+
+    <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>Leverancier</label>
+    <input type="text" class="f-leverancier" placeholder="Naam leverancier" autocomplete="off" />
+
+    <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12a1 1 0 0 1 1 1v18l-2.5-1.5L14 21l-2.5-1.5L9 21l-2.5-1.5L4 21V3a1 1 0 0 1 1-1Z"></path><path d="M8 7h8M8 11h8M8 15h5"></path></svg>Totaalbedrag (incl. BTW)</label>
+    <input type="number" class="f-totaal" step="0.01" min="0" placeholder="0,00" />
+
+    <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>BTW-bedrag per tarief</label>
+    <div class="hint" style="margin-top:-10px;">Zoals vermeld op de bon bij "BTW 21%" / "BTW 9%" — niet het bedrag incl. BTW.</div>
+    <div class="splits-container"></div>
+    <button type="button" class="link-btn add-split-btn" style="margin-bottom:16px;">+ Nog een BTW-tarief op dit bonnetje</button>
+
+    <div class="line-computed"></div>
+
+    <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>Bonnetje</label>
+    <div class="file-buttons">
+      <button type="button" class="btn btn-outline camera-btn">Foto maken</button>
+      <button type="button" class="btn btn-outline file-btn">Bestand kiezen</button>
+    </div>
+    <input type="file" class="camera-input" accept="image/*" capture="environment" />
+    <input type="file" class="file-input" accept="image/*,application/pdf" />
+    <div class="bon-preview"></div>
+  </div>
+</template>
+
+<template id="splitTemplate">
+  <div class="split-row">
+    <select class="f-split-btw">
+      <option value="0.21">21%</option>
+      <option value="0.09">9%</option>
+    </select>
+    <input type="number" class="f-split-bedrag" step="0.01" min="0" placeholder="BTW-bedrag" />
+    <button type="button" class="remove-split-btn" title="Tarief verwijderen">&times;</button>
+  </div>
+</template>
+
+<script src="pdf-lib.min.js"></script>
+<script src="cropper.min.js"></script>
+<script src="shared/dropbox.js"></script>
+<script src="shared/file-helpers.js"></script>
+<script src="shared/crop.js"></script>
+<script src="shared/openstaand.js"></script>
+<script src="shared/settings.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const LS_NAMEN = "ib_namen";
+  const LS_IBANS = "ib_ibans";
+  const LS_BALIES = "ib_kostenplaatsen";
+  const DROPBOX_FOLDER = "/Declaraties";
+  const dbx = createDropboxSyncClient({ folder: DROPBOX_FOLDER });
+
+  // ---------- Status helper ----------
+  function setStatus(el, type, msg) {
+    el.className = "status" + (type ? " " + type : "");
+    el.textContent = msg;
+  }
+
+  // ---------- Namen / balie / IBAN datalists ----------
+  function getList(key) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveIfNew(key, val) {
+    if (!val) return;
+    const list = getList(key);
+    if (!list.some((v) => v.toLowerCase() === val.toLowerCase())) {
+      list.push(val);
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+  }
+  function renderDatalist(elId, key) {
+    const dl = document.getElementById(elId);
+    dl.innerHTML = "";
+    getList(key).forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      dl.appendChild(opt);
+    });
+  }
+  function renderAllDatalists() {
+    renderDatalist("vanlijst", LS_NAMEN);
+    renderDatalist("ibanlijst", LS_IBANS);
+    renderDatalist("balielijst", LS_BALIES);
+  }
+
+  // ---------- Money / date helpers ----------
+  function fmtMoney(n) {
+    return (Number(n) || 0).toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtDateNL(isoDate) {
+    if (!isoDate) return "-";
+    const [y, m, d] = isoDate.split("-");
+    return d && m && y ? `${d}-${m}-${y}` : isoDate;
+  }
+  function fmtPct(btw) {
+    return Math.round(Number(btw) * 100) + "%";
+  }
+  function truncate(str, n) {
+    if (!str) return "";
+    return str.length > n ? str.slice(0, n - 1) + "…" : str;
+  }
+
+  // ---------- Line item calculations ----------
+  // Een split slaat het BTW-bedrag zelf op (zoals op de bon vermeld) — bedrag
+  // excl./incl. wordt daaruit afgeleid: excl. = btw-bedrag / tarief.
+  function computeSplit(split) {
+    const btw = Number(split.btw) || 0;
+    const btwBedrag = Number(split.btwBedrag) || 0;
+    const bedragExcl = btw > 0 ? btwBedrag / btw : 0;
+    const bedragIncl = bedragExcl + btwBedrag;
+    return { bedragIncl, btwBedrag, bedragExcl };
+  }
+  // Het totaalbedrag (incl. BTW) wordt apart ingevuld; excl. volgt uit totaal - som(btw).
+  // Het deel van het totaal dat niet door een ingevulde split wordt gedekt, is impliciet
+  // het 0%/onbekende deel — dat hoeft de gebruiker niet apart in te vullen.
+  function computeLineTotal(line) {
+    const totaalIncl = Number(line.totaalIncl) || 0;
+    let sumBtw = 0;
+    (line.splits || []).forEach((split) => { sumBtw += computeSplit(split).btwBedrag; });
+    return { incl: totaalIncl, btw: sumBtw, excl: totaalIncl - sumBtw };
+  }
+  function computeTotals(lineArr) {
+    const totals = { incl: 0, btw: 0, excl: 0, r21: { incl: 0, btw: 0, excl: 0 }, r9: { incl: 0, btw: 0, excl: 0 } };
+    lineArr.forEach((line) => {
+      const lt = computeLineTotal(line);
+      totals.incl += lt.incl;
+      totals.btw += lt.btw;
+      totals.excl += lt.excl;
+      // Dezelfde (voor afrondingsruis gecorrigeerde) rijen als in de PDF-tabel,
+      // zodat "w.v. 21%/9%" altijd optelt tot exact hetzelfde totaal hierboven.
+      getLineRenderRows(line).forEach((row) => {
+        if (row.btw === 0.21) {
+          totals.r21.incl += row.bedragIncl; totals.r21.btw += row.btwBedrag; totals.r21.excl += row.bedragExcl;
+        } else if (row.btw === 0.09) {
+          totals.r9.incl += row.bedragIncl; totals.r9.btw += row.btwBedrag; totals.r9.excl += row.bedragExcl;
+        }
+      });
+    });
+    return totals;
+  }
+  // Een ingevuld BTW-bedrag is zelf al afgerond op de cent (zoals op de bon).
+  // Terugrekenen naar excl. (btw-bedrag / tarief) versterkt die afrondingsfout met
+  // een factor 1/tarief — bij 9% dus ruim 11x. Deze marge (per ingevuld tarief
+  // een halve cent BTW-afronding, teruggerekend naar het effect op het bedrag)
+  // voorkomt dat normale afrondingsruis onterecht als fout wordt gezien.
+  function getLineTolerance(line) {
+    return (line.splits || []).reduce((sum, split) => {
+      const btw = Number(split.btw) || 0;
+      return sum + (btw > 0 ? 0.005 / btw : 0);
+    }, 0.005);
+  }
+  // Rijen voor de PDF-tabel: één rij per ingevulde BTW-tarief, plus — als het totaal
+  // (buiten de afrondingsmarge) hoger is dan de som van de ingevulde tarieven —
+  // een impliciete rij voor het resterende (0%/onbekende) deel, zodat het totaal
+  // van de regel altijd klopt. Een negatieve rest buiten de marge wijst op een
+  // echte invoerfout (zie updateLineComputed) en wordt hier ook zichtbaar.
+  function getLineRenderRows(line) {
+    const totaalIncl = Number(line.totaalIncl) || 0;
+    const rows = (line.splits || []).map((split) => ({ btw: Number(split.btw) || 0, ...computeSplit(split) }));
+    const rest = totaalIncl - rows.reduce((sum, r) => sum + r.bedragIncl, 0);
+    if (Math.abs(rest) > getLineTolerance(line)) {
+      rows.push({ btw: 0, bedragIncl: rest, btwBedrag: 0, bedragExcl: rest });
+    } else if (rows.length && Math.abs(rest) > 0.0001) {
+      // Afrondingsruis binnen de marge: in de excl.-kolom van de laatste rij verwerken,
+      // zodat de regel exact optelt tot het ingevulde totaal. Het BTW-bedrag blijft
+      // ongewijzigd — dat is wat letterlijk van de bon is overgenomen.
+      const last = rows[rows.length - 1];
+      last.bedragIncl += rest;
+      last.bedragExcl += rest;
+    }
+    return rows;
+  }
+
+  // ---------- Line items UI ----------
+  let lineIdCounter = 0;
+  const lines = new Map();
+
+  function todayStr() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function updateLineComputed(node, data) {
+    const { incl, btw, excl } = computeLineTotal(data);
+    const rows = getLineRenderRows(data);
+    const isImpossible = rows.some((r) => r.btw === 0 && r.bedragIncl < -0.005);
+    const el = node.querySelector(".line-computed");
+    el.textContent = `Regeltotaal: € ${fmtMoney(incl)} incl. BTW · € ${fmtMoney(btw)} BTW · € ${fmtMoney(excl)} excl. BTW`;
+    if (isImpossible) {
+      el.textContent += " — klopt niet: de ingevulde BTW-bedragen samen zijn hoger dan het totaalbedrag. Controleer het totaal en de BTW-bedragen.";
+    }
+    el.style.color = isImpossible ? "var(--red)" : "";
+  }
+
+  function updateTotals() {
+    const totals = computeTotals(Array.from(lines.values()));
+    document.getElementById("totalsGrid").innerHTML = `
+      <div class="totals-row"><span>Totaal excl. BTW</span><span>€ ${fmtMoney(totals.excl)}</span></div>
+      <div class="totals-row"><span>Totaal BTW</span><span>€ ${fmtMoney(totals.btw)}</span></div>
+      <div class="totals-row total"><span>Totaal incl. BTW</span><span>€ ${fmtMoney(totals.incl)}</span></div>
+      <div class="totals-row muted"><span>w.v. 21% (incl. BTW)</span><span>€ ${fmtMoney(totals.r21.incl)}</span></div>
+      <div class="totals-row muted"><span>w.v. 9% (incl. BTW)</span><span>€ ${fmtMoney(totals.r9.incl)}</span></div>
+    `;
+  }
+
+  function updateBonPreview(node, data) {
+    const preview = node.querySelector(".bon-preview");
+    preview.innerHTML = "";
+    if (!data.bonFile) return;
+    if (data.bonFile.type.startsWith("image/")) {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(data.bonFile);
+      preview.appendChild(img);
+    } else {
+      const div = document.createElement("div");
+      div.className = "filelabel";
+      div.textContent = "Bestand: " + data.bonFile.name;
+      preview.appendChild(div);
+    }
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "bon-remove-btn";
+    removeBtn.textContent = "Bon verwijderen";
+    removeBtn.addEventListener("click", () => {
+      data.bonFile = null;
+      updateBonPreview(node, data);
+    });
+    preview.appendChild(removeBtn);
+  }
+
+  const cropController = createCropController({
+    overlayId: "cropOverlay",
+    imageId: "cropImage",
+    cancelBtnId: "cropCancelBtn",
+    skipBtnId: "cropSkipBtn",
+    applyBtnId: "cropApplyBtn",
+    onClose: (lineId) => {
+      const node = document.querySelector(`.line-card[data-id="${lineId}"]`);
+      if (node) {
+        node.querySelector(".camera-input").value = "";
+        node.querySelector(".file-input").value = "";
+      }
+    },
+  });
+
+  function handleLineFile(id, node, file) {
+    if (!file) return;
+    if (file.type.startsWith("image/")) {
+      cropController.open(file, id, (croppedFile, lineId) => {
+        const targetNode = document.querySelector(`.line-card[data-id="${lineId}"]`);
+        const data = lines.get(lineId);
+        if (!targetNode || !data) return;
+        data.bonFile = croppedFile;
+        updateBonPreview(targetNode, data);
+      });
+    } else {
+      const data = lines.get(id);
+      data.bonFile = file;
+      updateBonPreview(node, data);
+    }
+  }
+
+  function updateRemoveSplitVisibility(node, data) {
+    const show = data.splits.length > 1;
+    node.querySelectorAll(".remove-split-btn").forEach((btn) => {
+      btn.style.visibility = show ? "visible" : "hidden";
+    });
+  }
+
+  function addSplitRow(node, data, btw, btwBedrag) {
+    const tpl = document.getElementById("splitTemplate");
+    const rowNode = tpl.content.firstElementChild.cloneNode(true);
+    const split = { btw: btw !== undefined ? btw : 0.21, btwBedrag: btwBedrag || 0 };
+    data.splits.push(split);
+
+    node.querySelector(".splits-container").appendChild(rowNode);
+
+    const sel = rowNode.querySelector(".f-split-btw");
+    const inp = rowNode.querySelector(".f-split-bedrag");
+    sel.value = String(split.btw);
+    if (split.btwBedrag) inp.value = String(split.btwBedrag);
+
+    sel.addEventListener("change", (e) => { split.btw = parseFloat(e.target.value); updateLineComputed(node, data); updateTotals(); });
+    inp.addEventListener("input", (e) => { split.btwBedrag = parseFloat(e.target.value) || 0; updateLineComputed(node, data); updateTotals(); });
+
+    rowNode.querySelector(".remove-split-btn").addEventListener("click", () => {
+      if (data.splits.length <= 1) return;
+      const idx = data.splits.indexOf(split);
+      if (idx > -1) data.splits.splice(idx, 1);
+      rowNode.remove();
+      updateRemoveSplitVisibility(node, data);
+      updateLineComputed(node, data);
+      updateTotals();
+    });
+
+    updateRemoveSplitVisibility(node, data);
+  }
+
+  function addLine() {
+    const id = ++lineIdCounter;
+    const tpl = document.getElementById("lineTemplate");
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    node.dataset.id = String(id);
+    document.getElementById("linesContainer").appendChild(node);
+
+    const data = { id, datum: todayStr(), omschrijving: "", leverancier: "", totaalIncl: 0, bonFile: null, splits: [] };
+    lines.set(id, data);
+
+    const q = (sel) => node.querySelector(sel);
+
+    q(".f-omschrijving").addEventListener("input", (e) => { data.omschrijving = e.target.value; });
+    q(".f-leverancier").addEventListener("input", (e) => { data.leverancier = e.target.value; });
+    q(".f-totaal").addEventListener("input", (e) => { data.totaalIncl = parseFloat(e.target.value) || 0; updateLineComputed(node, data); updateTotals(); });
+
+    q(".add-split-btn").addEventListener("click", () => {
+      addSplitRow(node, data);
+    });
+    addSplitRow(node, data);
+
+    q(".remove-line-btn").addEventListener("click", () => {
+      lines.delete(id);
+      node.remove();
+      updateTotals();
+    });
+
+    q(".camera-btn").addEventListener("click", () => q(".camera-input").click());
+    q(".file-btn").addEventListener("click", () => q(".file-input").click());
+    q(".camera-input").addEventListener("change", (e) => handleLineFile(id, node, e.target.files[0]));
+    q(".file-input").addEventListener("change", (e) => handleLineFile(id, node, e.target.files[0]));
+
+    updateLineComputed(node, data);
+    updateTotals();
+    return node;
+  }
+
+  document.getElementById("addLineBtn").addEventListener("click", () => addLine());
+
+  function resetForm() {
+    document.getElementById("van").value = "";
+    document.getElementById("iban").value = "";
+    document.getElementById("balie").value = "";
+    document.getElementById("linesContainer").innerHTML = "";
+    lines.clear();
+    addLine();
+  }
+
+  function collectHeader() {
+    return {
+      van: document.getElementById("van").value.trim(),
+      iban: document.getElementById("iban").value.trim().toUpperCase(),
+      balie: document.getElementById("balie").value.trim(),
+    };
+  }
+
+  // ---------- PDF opbouwen ----------
+  const PAGE_W = 595.28, PAGE_H = 841.89, MARGIN = 40;
+  const COL = { nr: MARGIN, datum: MARGIN + 20, oms: MARGIN + 75, lev: MARGIN + 215, btw: MARGIN + 320, incl: MARGIN + 350, btwbedrag: MARGIN + 410, excl: MARGIN + 465 };
+
+  async function buildDeclaratiePdf({ header, lineArr }) {
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const pdfDoc = await PDFDocument.create();
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    let page, y;
+    const now = new Date();
+    const nowStr = now.toLocaleDateString("nl-NL") + " " + now.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+
+    function drawTableHeaderRow() {
+      page.drawRectangle({ x: MARGIN, y: y - 4, width: PAGE_W - MARGIN * 2, height: 15, color: rgb(0.93, 0.93, 0.93) });
+      const cols = [["Nr", COL.nr], ["Datum", COL.datum], ["Omschrijving", COL.oms], ["Leverancier", COL.lev], ["BTW", COL.btw], ["Incl. BTW", COL.incl], ["BTW bedrag", COL.btwbedrag], ["Excl. BTW", COL.excl]];
+      cols.forEach(([label, x]) => page.drawText(label, { x, y, size: 8, font: fontBold, color: rgb(0.1, 0.1, 0.1) }));
+      y -= 16;
+    }
+
+    function newPage(withHeaderBlock) {
+      page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      y = PAGE_H - MARGIN;
+      if (withHeaderBlock) {
+        page.drawText("DECLARATIEFORMULIER", { x: MARGIN, y, size: 16, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+        y -= 24;
+        const infoLines = [
+          ["Naam:", header.van || "-"],
+          ["IBAN:", header.iban || "-"],
+          ["Kostenplaats/vestiging:", header.balie || "-"],
+          ["Ingediend op:", nowStr],
+        ];
+        // Waardekolom dynamisch positioneren op basis van de langste label —
+        // voorkomt overlap als een label later weer wordt aangepast/verlengd.
+        const infoValueX = MARGIN + Math.max(...infoLines.map(([label]) => fontBold.widthOfTextAtSize(label, 10))) + 14;
+        infoLines.forEach(([label, value]) => {
+          page.drawText(label, { x: MARGIN, y, size: 10, font: fontBold, color: rgb(0.3, 0.3, 0.3) });
+          page.drawText(value, { x: infoValueX, y, size: 10, font, color: rgb(0, 0, 0) });
+          y -= 15;
+        });
+        y -= 8;
+      } else {
+        page.drawText(`Declaratie ${header.van}`.trim() + " — vervolg", { x: MARGIN, y, size: 12, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+        y -= 20;
+      }
+      drawTableHeaderRow();
+    }
+
+    newPage(true);
+    const ROW_H = 15;
+
+    lineArr.forEach((line, idx) => {
+      const rows = getLineRenderRows(line);
+      rows.forEach((row, rowIdx) => {
+        if (y < MARGIN + 60) newPage(false);
+        page.drawText(String(idx + 1), { x: COL.nr, y, size: 8, font, color: rgb(0, 0, 0) });
+        if (rowIdx === 0) {
+          page.drawText(fmtDateNL(line.datum), { x: COL.datum, y, size: 8, font, color: rgb(0, 0, 0) });
+          page.drawText(truncate(line.omschrijving, 34), { x: COL.oms, y, size: 8, font, color: rgb(0, 0, 0) });
+          page.drawText(truncate(line.leverancier, 24), { x: COL.lev, y, size: 8, font, color: rgb(0, 0, 0) });
+        }
+        page.drawText(fmtPct(row.btw), { x: COL.btw, y, size: 8, font, color: rgb(0, 0, 0) });
+        page.drawText(fmtMoney(row.bedragIncl), { x: COL.incl, y, size: 8, font, color: rgb(0, 0, 0) });
+        page.drawText(fmtMoney(row.btwBedrag), { x: COL.btwbedrag, y, size: 8, font, color: rgb(0, 0, 0) });
+        page.drawText(fmtMoney(row.bedragExcl), { x: COL.excl, y, size: 8, font, color: rgb(0, 0, 0) });
+        y -= ROW_H;
+      });
+    });
+
+    if (y < MARGIN + 100) newPage(false);
+    y -= 8;
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+    y -= 18;
+
+    const totals = computeTotals(lineArr);
+    const totalRows = [
+      ["Totaal", totals.incl, totals.btw, totals.excl],
+      ["w.v. 21%", totals.r21.incl, totals.r21.btw, totals.r21.excl],
+      ["w.v. 9%", totals.r9.incl, totals.r9.btw, totals.r9.excl],
+    ];
+    totalRows.forEach(([label, incl, btwAmt, excl]) => {
+      page.drawText(label, { x: MARGIN, y, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+      page.drawText(fmtMoney(incl), { x: COL.incl, y, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+      page.drawText(fmtMoney(btwAmt), { x: COL.btwbedrag, y, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+      page.drawText(fmtMoney(excl), { x: COL.excl, y, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+      y -= 15;
+    });
+
+    // Bonnetjes als losse pagina's, in volgorde van de regels
+    for (let idx = 0; idx < lineArr.length; idx++) {
+      const line = lineArr[idx];
+      if (!line.bonFile) continue;
+      try {
+        await addAttachmentPage(pdfDoc, line, idx + 1, fontBold, font, rgb);
+      } catch (e) {
+        console.error(e);
+        throw new Error(`Bonnetje bij regel ${idx + 1} kon niet worden verwerkt (onherkenbaar bestandsformaat). Maak de foto opnieuw of kies een ander bestand.`);
+      }
+    }
+
+    return pdfDoc.save();
+  }
+
+  async function addAttachmentPage(pdfDoc, line, nr, fontBold, font, rgb) {
+    const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    let y = PAGE_H - MARGIN;
+    const caption = `Bon bij regel ${nr}` + (line.omschrijving ? " — " + line.omschrijving : "");
+    page.drawText(caption, { x: MARGIN, y, size: 12, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+    y -= 24;
+
+    const availableWidth = PAGE_W - MARGIN * 2;
+    const availableHeight = y - MARGIN;
+    const bytes = new Uint8Array(await line.bonFile.arrayBuffer());
+
+    if (line.bonFile.type === "application/pdf") {
+      const srcDoc = await PDFLib.PDFDocument.load(bytes);
+      const [embeddedPage] = await pdfDoc.embedPdf(srcDoc, [0]);
+      const scale = Math.min(availableWidth / embeddedPage.width, availableHeight / embeddedPage.height, 1);
+      const w = embeddedPage.width * scale, h = embeddedPage.height * scale;
+      page.drawPage(embeddedPage, { x: MARGIN + (availableWidth - w) / 2, y: y - h, width: w, height: h });
+    } else {
+      let img;
+      if (line.bonFile.type === "image/png") img = await pdfDoc.embedPng(bytes);
+      else img = await pdfDoc.embedJpg(bytes);
+      const scale = Math.min(availableWidth / img.width, availableHeight / img.height, 1);
+      const w = img.width * scale, h = img.height * scale;
+      page.drawImage(img, { x: MARGIN + (availableWidth - w) / 2, y: y - h, width: w, height: h });
+    }
+  }
+
+  function buildFilename(header) {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const datePart = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const timePart = `${pad(d.getHours())}${pad(d.getMinutes())}`;
+    const naamPart = FileHelpers.sanitizeForFilename(header.van);
+    return `declaratie_${d.getFullYear()}_${naamPart}_${datePart}_${timePart}.pdf`;
+  }
+
+  // ---------- Openstaande declaraties / instellingen ----------
+  const openstaand = createOpenstaandList({
+    syncClient: dbx,
+    cardId: "openstaandCard",
+    listId: "openstaandList",
+    statusId: "openstaandStatus",
+    refreshBtnId: "refreshOpenstaandBtn",
+    openFolderBtnId: "openFolderBtn",
+    emptyText: "Geen openstaande declaraties.",
+    shareText: "Declaratie voor administratie",
+    pageSize: 5,
+  });
+
+  const settingsPanel = initSettingsPanel({ onAfterClose: () => openstaand.refresh() });
+
+  // ---------- Submit ----------
+  document.getElementById("submitBtn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("status");
+    const header = collectHeader();
+
+    if (!header.van) return setStatus(statusEl, "err", "Vul in wie de declaratie indient.");
+    if (!header.iban) return setStatus(statusEl, "err", "Vul het IBAN in.");
+    if (!header.balie) return setStatus(statusEl, "err", "Vul de kostenplaats in.");
+
+    const lineArr = Array.from(lines.values())
+      .map((l) => ({ ...l, splits: l.splits.filter((s) => Number(s.btwBedrag) > 0) }))
+      .filter((l) => l.omschrijving.trim() && Number(l.totaalIncl) > 0);
+    if (!lineArr.length) return setStatus(statusEl, "err", "Voeg minstens één regel toe met een omschrijving en een totaalbedrag.");
+
+    const missingBonRegels = lineArr.map((l, i) => (!l.bonFile ? i + 1 : null)).filter((n) => n !== null);
+    if (missingBonRegels.length) {
+      return setStatus(statusEl, "err", "Voeg bij elke regel een bonnetje toe — ontbreekt nog bij regel " + missingBonRegels.join(", ") + ".");
+    }
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    setStatus(statusEl, "info", "PDF wordt gemaakt...");
+
+    try {
+      const pdfBytes = await buildDeclaratiePdf({ header, lineArr });
+      const filename = buildFilename(header);
+
+      if (DropboxAuth.isConnected()) {
+        setStatus(statusEl, "info", "PDF wordt opgeslagen in Dropbox...");
+        await dbx.upload(filename, pdfBytes);
+        setStatus(statusEl, "ok", "Opgeslagen in Dropbox als " + filename);
+        openstaand.refresh();
+      } else {
+        const blob = new Blob([pdfBytes], { type: "application/pdf" });
+        const outcome = await FileHelpers.shareOrDownload(filename, blob, "Declaratie voor administratie");
+        if (outcome === "cancelled") {
+          setStatus(statusEl, "err", "Delen geannuleerd — de PDF is niet opgeslagen. Probeer het opnieuw.");
+          return;
+        }
+        const verb = outcome === "shared" ? "gedeeld" : "lokaal gedownload";
+        setStatus(statusEl, "ok", "PDF is " + verb + ": " + filename + ". Verbind eventueel via het tandwiel-icoon met Dropbox om declaraties automatisch te bewaren.");
+      }
+
+      saveIfNew(LS_NAMEN, header.van);
+      saveIfNew(LS_IBANS, header.iban);
+      saveIfNew(LS_BALIES, header.balie);
+      renderAllDatalists();
+      resetForm();
+    } catch (e) {
+      console.error(e);
+      setStatus(statusEl, "err", e.message || "Er ging iets mis.");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- Init ----------
+  (async function init() {
+    renderAllDatalists();
+    addLine();
+    await DropboxAuth.finishAuthIfRedirected();
+    settingsPanel.updateStatusUI();
+    openstaand.refresh();
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+  })();
+})();
+</script>

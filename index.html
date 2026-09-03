@@ -1,0 +1,98 @@
+<title>IB Toolbox</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#ffc700" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="shared/style.css" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<script>window.CURRENT_TOOL = "home";</script>
+<style>
+  .intro { font-size: 14px; color: var(--muted); margin: 4px 0 22px; }
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(64px, 20vw, 96px), 1fr));
+    gap: 22px 10px;
+  }
+  .app-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--text);
+    text-align: center;
+  }
+  .app-item .tool-icon {
+    width: 100%;
+    max-width: clamp(56px, 18vw, 84px);
+    aspect-ratio: 1 / 1;
+    border-radius: 22%;
+    display: block;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  }
+  .app-item .tool-title { font-size: 12px; font-weight: 600; line-height: 1.25; }
+</style>
+
+<header>
+  <button type="button" id="navBtn" title="Menu" aria-label="Menu">&#9776;</button>
+  <h1>IB Toolbox</h1>
+  <button type="button" id="settingsBtn" title="Instellingen" aria-label="Instellingen">&#9881;</button>
+</header>
+
+<main>
+  <p class="intro">Kies een tool. Er komen in de toekomst meer bedrijfstools bij — bereikbaar via het hamburgermenu links­boven.</p>
+
+  <div class="app-grid">
+    <a class="app-item" href="./bonnetjes.html">
+      <img class="tool-icon" src="icon-bonnetjes-192.png" alt="" />
+      <span class="tool-title">Bonnetjes</span>
+    </a>
+    <a class="app-item" href="./declaraties.html">
+      <img class="tool-icon" src="icon-declaraties-192.png" alt="" />
+      <span class="tool-title">Declaraties</span>
+    </a>
+    <a class="app-item" href="./kilometers.html">
+      <img class="tool-icon" src="icon-kilometers-192.png" alt="" />
+      <span class="tool-title">Kilometers</span>
+    </a>
+    <a class="app-item" href="./reglementen.html">
+      <img class="tool-icon" src="icon-reglementen-192.png" alt="" />
+      <span class="tool-title">Reglementen</span>
+    </a>
+  </div>
+</main>
+
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="close-row"><button id="closeSettings">&times;</button></div>
+    <h2>Instellingen</h2>
+
+    <div class="dropbox-status" id="dbStatusLine">
+      <span class="dot off" id="dbDot"></span><span id="dbStatusText">Niet verbonden met Dropbox</span>
+    </div>
+
+    <label for="appKeyInput">Dropbox App key</label>
+    <input type="text" id="appKeyInput" placeholder="App key uit de Dropbox App Console" autocomplete="off" />
+    <div class="hint">Ga naar de Dropbox App Console, maak een Scoped App (Folder access), zet onder "Permissions" deze vijf vinkjes aan: files.content.write, files.content.read, files.metadata.read, sharing.write, sharing.read — en zet de redirect URI exact op dit adres. Al eerder verbonden met minder rechten? Vink de nieuwe rechten aan en klik hieronder op "Loskoppelen" gevolgd door opnieuw "Verbinden" — rechten worden pas bij het verbinden vastgelegd. Deze koppeling geldt voor alle tools in IB Toolbox samen.</div>
+
+    <button type="button" class="btn btn-outline" id="connectBtn" style="width:100%; margin-bottom:10px;">Verbinden met Dropbox</button>
+    <button type="button" class="btn btn-danger" id="disconnectBtn" style="width:100%; display:none;">Loskoppelen</button>
+
+    <div class="status" id="settingsStatus"></div>
+  </div>
+</div>
+
+<script src="shared/dropbox.js"></script>
+<script src="shared/settings.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+(function () {
+  "use strict";
+  (async function init() {
+    await DropboxAuth.finishAuthIfRedirected();
+    initSettingsPanel({});
+  })();
+})();
+</script>

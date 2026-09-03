@@ -1,0 +1,635 @@
+<title>Kilometers · IB Toolbox</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#ffc700" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="shared/style.css" />
+<link rel="apple-touch-icon" href="icon-kilometers-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<script>window.CURRENT_TOOL = "kilometers";</script>
+<style>
+  .line-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .line-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .line-title { font-weight: 700; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .remove-line-btn { background: none; border: none; color: var(--red); font-size: 22px; cursor: pointer; line-height: 1; padding: 2px 6px; }
+  .line-computed { font-size: 13px; color: var(--muted); margin: 4px 0 14px; font-weight: 600; }
+  .split-row { display: flex; gap: 8px; align-items: center; }
+  .split-row input { margin-bottom: 0; }
+  .split-row input.f-postcode { flex: 0 0 100px; }
+  .split-row input.f-plaats { flex: 1; }
+  .trip-type-switch {
+    position: relative;
+    display: flex;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 16px;
+  }
+  .trip-type-switch .thumb {
+    position: absolute;
+    top: 3px; bottom: 3px; left: 3px;
+    width: calc(50% - 3px);
+    background: var(--brand);
+    border-radius: 8px;
+    transition: transform 0.2s ease;
+  }
+  .trip-type-switch[data-value="retour"] .thumb { transform: translateX(100%); }
+  .trip-type-switch button {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .trip-type-switch button.active { color: var(--brand-text); }
+  .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
+  .totals-row.total { font-weight: 700; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 10px; font-size: 15px; }
+  .totals-row.muted { color: var(--muted); font-size: 13px; }
+</style>
+
+<header>
+  <button type="button" id="navBtn" title="Menu" aria-label="Menu">&#9776;</button>
+  <h1>Kilometers</h1>
+  <button type="button" id="settingsBtn" title="Instellingen" aria-label="Instellingen">&#9881;</button>
+</header>
+
+<main>
+  <div class="card">
+    <label for="naam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>Van</label>
+    <input type="text" id="naam" list="naamlijst" placeholder="Bijv. Jan Jansen" autocomplete="off" />
+    <datalist id="naamlijst"></datalist>
+
+    <label for="kenteken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"></path><rect x="3" y="11" width="18" height="7" rx="2"></rect><circle cx="7.5" cy="18" r="1.5"></circle><circle cx="16.5" cy="18" r="1.5"></circle></svg>Kenteken</label>
+    <input type="text" id="kenteken" list="kentekenlijst" placeholder="Bijv. P-395-XZ" autocomplete="off" />
+    <datalist id="kentekenlijst"></datalist>
+
+    <label for="iban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>IBAN</label>
+    <input type="text" id="iban" list="ibanlijst" placeholder="NL00 BANK 0123456789" autocomplete="off" />
+    <datalist id="ibanlijst"></datalist>
+  </div>
+
+  <div id="linesContainer"></div>
+
+  <button type="button" class="btn btn-outline" id="addLineBtn" style="width:100%; margin-bottom:16px;">+ Rit toevoegen</button>
+
+  <div class="card">
+    <label style="margin-bottom:10px;">Totalen</label>
+    <div id="totalsGrid"></div>
+  </div>
+
+  <div class="card">
+    <button type="button" class="btn btn-primary" id="submitBtn">Kilometerdeclaratie genereren</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card" id="openstaandCard" style="display:none;">
+    <div class="card-header">
+      <label style="margin-bottom:0;">Openstaande kilometerdeclaraties</label>
+      <div style="display:flex; gap:14px;">
+        <button type="button" class="link-btn" id="openFolderBtn">Open map ↗</button>
+        <button type="button" class="link-btn" id="refreshOpenstaandBtn">Vernieuwen</button>
+      </div>
+    </div>
+    <div id="openstaandList"><div class="empty-hint">Laden...</div></div>
+    <div class="status" id="openstaandStatus"></div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="close-row"><button id="closeSettings">&times;</button></div>
+    <h2>Instellingen</h2>
+
+    <div class="dropbox-status" id="dbStatusLine">
+      <span class="dot off" id="dbDot"></span><span id="dbStatusText">Niet verbonden met Dropbox</span>
+    </div>
+
+    <label for="appKeyInput">Dropbox App key</label>
+    <input type="text" id="appKeyInput" placeholder="App key uit de Dropbox App Console" autocomplete="off" />
+    <div class="hint">Ga naar de Dropbox App Console, maak een Scoped App (Folder access), zet onder "Permissions" deze vijf vinkjes aan: files.content.write, files.content.read, files.metadata.read, sharing.write, sharing.read — en zet de redirect URI exact op dit adres. Al eerder verbonden met minder rechten? Vink de nieuwe rechten aan en klik hieronder op "Loskoppelen" gevolgd door opnieuw "Verbinden" — rechten worden pas bij het verbinden vastgelegd. Deze koppeling geldt voor alle tools in IB Toolbox samen.</div>
+
+    <button type="button" class="btn btn-outline" id="connectBtn" style="width:100%; margin-bottom:10px;">Verbinden met Dropbox</button>
+    <button type="button" class="btn btn-danger" id="disconnectBtn" style="width:100%; display:none;">Loskoppelen</button>
+
+    <div class="status" id="settingsStatus"></div>
+  </div>
+</div>
+
+<template id="lineTemplate">
+  <div class="line-card">
+    <div class="line-card-header">
+      <span class="line-title">Rit</span>
+      <button type="button" class="remove-line-btn" title="Rit verwijderen">&times;</button>
+    </div>
+
+    <label>Datum</label>
+    <input type="date" class="f-datum" />
+
+    <label>Bestemming</label>
+    <input type="text" class="f-bestemming" list="bestemmingenlijst" placeholder="Bijv. Den Haag (typ een eerder opgeslagen bestemming voor automatisch invullen)" autocomplete="off" />
+
+    <label>Van</label>
+    <div class="split-row" style="margin-bottom:16px;">
+      <input type="text" class="f-van-postcode" placeholder="Postcode" autocomplete="off" />
+      <input type="text" class="f-van-plaats" placeholder="Plaats" autocomplete="off" />
+    </div>
+
+    <label>Naar</label>
+    <div class="split-row" style="margin-bottom:16px;">
+      <input type="text" class="f-naar-postcode" placeholder="Postcode" autocomplete="off" />
+      <input type="text" class="f-naar-plaats" placeholder="Plaats" autocomplete="off" />
+    </div>
+
+    <label>Activiteiten</label>
+    <input type="text" class="f-activiteiten" placeholder="Reden van de rit" autocomplete="off" />
+
+    <label>Km (enkele reis)</label>
+    <input type="number" class="f-km" step="1" min="0" placeholder="0" />
+
+    <div class="trip-type-switch" data-value="enkel">
+      <div class="thumb"></div>
+      <button type="button" class="f-type-btn active" data-value="enkel">Enkele reis</button>
+      <button type="button" class="f-type-btn" data-value="retour">Retour</button>
+    </div>
+
+    <div class="line-computed"></div>
+  </div>
+</template>
+
+<datalist id="bestemmingenlijst"></datalist>
+
+<script src="pdf-lib.min.js"></script>
+<script src="shared/dropbox.js"></script>
+<script src="shared/file-helpers.js"></script>
+<script src="shared/openstaand.js"></script>
+<script src="shared/settings.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const LS_NAMEN = "ib_namen";
+  const LS_KENTEKENS = "km_kentekens";
+  const LS_IBANS = "ib_ibans";
+  const LS_BESTEMMINGEN = "km_bestemmingen";
+  const LS_VAN_POSTCODE = "km_van_postcode";
+  const LS_VAN_PLAATS = "km_van_plaats";
+  // Vaste tarieven — geen invoerveld, want deze wijzigen niet per declaratie.
+  const TARIEF_ONBELAST = 0.25;
+  const TARIEF_TOTAAL = 0.40;
+  const DROPBOX_FOLDER = "/Kilometers";
+  const dbx = createDropboxSyncClient({ folder: DROPBOX_FOLDER });
+
+  // ---------- Status helper ----------
+  function setStatus(el, type, msg) {
+    el.className = "status" + (type ? " " + type : "");
+    el.textContent = msg;
+  }
+
+  // ---------- Namen / auto's ----------
+  function getList(key) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveIfNew(key, val) {
+    if (!val) return;
+    const list = getList(key);
+    if (!list.some((v) => v.toLowerCase() === val.toLowerCase())) {
+      list.push(val);
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+  }
+  function renderDatalist(elId, key) {
+    const dl = document.getElementById(elId);
+    dl.innerHTML = "";
+    getList(key).forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      dl.appendChild(opt);
+    });
+  }
+
+  // ---------- Opgeslagen bestemmingen (postcode/plaats/km per naam) ----------
+  function getBestemmingen() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LS_BESTEMMINGEN) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function findBestemming(naam) {
+    if (!naam) return null;
+    const n = naam.trim().toLowerCase();
+    return getBestemmingen().find((b) => b.naam.toLowerCase() === n) || null;
+  }
+  function saveBestemming(naam, postcode, plaats, km) {
+    if (!naam || !postcode || !plaats || !km) return;
+    const list = getBestemmingen();
+    const existing = list.find((b) => b.naam.toLowerCase() === naam.toLowerCase());
+    if (existing) {
+      existing.postcode = postcode;
+      existing.plaats = plaats;
+      existing.km = km;
+    } else {
+      list.push({ naam, postcode, plaats, km });
+    }
+    localStorage.setItem(LS_BESTEMMINGEN, JSON.stringify(list));
+  }
+  function renderBestemmingenlijst() {
+    const dl = document.getElementById("bestemmingenlijst");
+    dl.innerHTML = "";
+    getBestemmingen().forEach((b) => {
+      const opt = document.createElement("option");
+      opt.value = b.naam;
+      dl.appendChild(opt);
+    });
+  }
+  function renderAllDatalists() {
+    renderDatalist("naamlijst", LS_NAMEN);
+    renderDatalist("kentekenlijst", LS_KENTEKENS);
+    renderDatalist("ibanlijst", LS_IBANS);
+    renderBestemmingenlijst();
+  }
+
+  // ---------- Rekenen ----------
+  function fmtDateNL(isoDate) {
+    if (!isoDate) return "-";
+    const [y, m, d] = isoDate.split("-");
+    return d && m && y ? `${d}-${m}-${y}` : isoDate;
+  }
+  function todayStr() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function lineTotalKm(line) {
+    const km = Number(line.km) || 0;
+    return line.retour ? km * 2 : km;
+  }
+  function fmtMoney(n) {
+    return (Number(n) || 0).toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function computeVergoeding(totalKm) {
+    const belastPerKm = Math.max(0, TARIEF_TOTAAL - TARIEF_ONBELAST);
+    const belastingvrij = TARIEF_ONBELAST * totalKm;
+    const belast = belastPerKm * totalKm;
+    const totaal = TARIEF_TOTAAL * totalKm;
+    return { belastingvrij, belast, totaal };
+  }
+  function computeTotals(lineArr) {
+    const totalKm = lineArr.reduce((sum, l) => sum + lineTotalKm(l), 0);
+    const vergoeding = computeVergoeding(totalKm);
+    return { totalKm, aantalRitten: lineArr.length, vergoeding };
+  }
+
+  // ---------- Rit-regels UI ----------
+  let lineIdCounter = 0;
+  const lines = new Map();
+
+  function updateLineComputed(node, data) {
+    const el = node.querySelector(".line-computed");
+    const km = lineTotalKm(data);
+    el.textContent = data.retour
+      ? `${Number(data.km) || 0} km enkele reis × 2 (retour) = ${km} km`
+      : `${km} km (enkele reis)`;
+  }
+
+  function updateTotals() {
+    const arr = Array.from(lines.values());
+    const totals = computeTotals(arr);
+    const v = totals.vergoeding;
+    document.getElementById("totalsGrid").innerHTML = `
+      <div class="totals-row muted"><span>Aantal ritten</span><span>${totals.aantalRitten}</span></div>
+      <div class="totals-row total"><span>Totaal kilometers</span><span>${totals.totalKm} km</span></div>
+      <div class="totals-row" style="margin-top:10px;"><span>Belastingvrij</span><span>€ ${fmtMoney(v.belastingvrij)}</span></div>
+      <div class="totals-row"><span>Belast</span><span>€ ${fmtMoney(v.belast)}</span></div>
+      <div class="totals-row total"><span>Totaal (uit te betalen)</span><span>€ ${fmtMoney(v.totaal)}</span></div>
+    `;
+  }
+
+  function applyBestemming(node, data, bestemming) {
+    if (!bestemming) return;
+    node.querySelector(".f-naar-postcode").value = bestemming.postcode;
+    node.querySelector(".f-naar-plaats").value = bestemming.plaats;
+    node.querySelector(".f-km").value = bestemming.km;
+    data.naarPostcode = bestemming.postcode;
+    data.naarPlaats = bestemming.plaats;
+    data.km = bestemming.km;
+  }
+
+  function addLine() {
+    const id = ++lineIdCounter;
+    const tpl = document.getElementById("lineTemplate");
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    node.dataset.id = String(id);
+    document.getElementById("linesContainer").appendChild(node);
+
+    const defaultVanPostcode = localStorage.getItem(LS_VAN_POSTCODE) || "";
+    const defaultVanPlaats = localStorage.getItem(LS_VAN_PLAATS) || "";
+
+    const data = {
+      id,
+      datum: todayStr(),
+      bestemming: "",
+      vanPostcode: defaultVanPostcode,
+      vanPlaats: defaultVanPlaats,
+      naarPostcode: "",
+      naarPlaats: "",
+      activiteiten: "",
+      km: 0,
+      retour: false,
+    };
+    lines.set(id, data);
+
+    const q = (sel) => node.querySelector(sel);
+    q(".f-datum").value = data.datum;
+    q(".f-van-postcode").value = defaultVanPostcode;
+    q(".f-van-plaats").value = defaultVanPlaats;
+
+    q(".f-datum").addEventListener("input", (e) => { data.datum = e.target.value; });
+    q(".f-bestemming").addEventListener("input", (e) => {
+      data.bestemming = e.target.value;
+      const match = findBestemming(e.target.value);
+      if (match) {
+        applyBestemming(node, data, match);
+        updateLineComputed(node, data);
+        updateTotals();
+      }
+    });
+    q(".f-van-postcode").addEventListener("input", (e) => { data.vanPostcode = e.target.value; });
+    q(".f-van-plaats").addEventListener("input", (e) => { data.vanPlaats = e.target.value; });
+    q(".f-naar-postcode").addEventListener("input", (e) => { data.naarPostcode = e.target.value; });
+    q(".f-naar-plaats").addEventListener("input", (e) => { data.naarPlaats = e.target.value; });
+    q(".f-activiteiten").addEventListener("input", (e) => { data.activiteiten = e.target.value; });
+    q(".f-km").addEventListener("input", (e) => {
+      data.km = parseFloat(e.target.value) || 0;
+      updateLineComputed(node, data);
+      updateTotals();
+    });
+    const typeSwitch = q(".trip-type-switch");
+    node.querySelectorAll(".f-type-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const value = btn.dataset.value;
+        data.retour = value === "retour";
+        typeSwitch.dataset.value = value;
+        node.querySelectorAll(".f-type-btn").forEach((b) => b.classList.toggle("active", b === btn));
+        updateLineComputed(node, data);
+        updateTotals();
+      });
+    });
+
+    q(".remove-line-btn").addEventListener("click", () => {
+      lines.delete(id);
+      node.remove();
+      updateTotals();
+    });
+
+    updateLineComputed(node, data);
+    updateTotals();
+    return node;
+  }
+
+  document.getElementById("addLineBtn").addEventListener("click", () => addLine());
+
+  function resetForm() {
+    document.getElementById("linesContainer").innerHTML = "";
+    lines.clear();
+    addLine();
+  }
+
+  function collectHeader() {
+    return {
+      naam: document.getElementById("naam").value.trim(),
+      kenteken: document.getElementById("kenteken").value.trim(),
+      iban: document.getElementById("iban").value.trim().toUpperCase(),
+    };
+  }
+
+  // ---------- PDF opbouwen ----------
+  const PAGE_W = 595.28, PAGE_H = 841.89, MARGIN = 40;
+  const COL = { datum: MARGIN, pc1: MARGIN + 55, van: MARGIN + 95, pc2: MARGIN + 180, naar: MARGIN + 220, act: MARGIN + 310, rit: MARGIN + 400, km: MARGIN + 460 };
+
+  function linesToRows(lineArr) {
+    return lineArr.map((line) => ({
+      datum: line.datum, vanPc: line.vanPostcode, vanPlaats: line.vanPlaats,
+      naarPc: line.naarPostcode, naarPlaats: line.naarPlaats,
+      activiteiten: line.activiteiten, type: line.retour ? "Retour" : "Enkel",
+      km: lineTotalKm(line),
+    }));
+  }
+
+  function truncate(str, n) {
+    if (!str) return "";
+    return str.length > n ? str.slice(0, n - 1) + "…" : str;
+  }
+
+  async function buildKmPdf({ header, lineArr }) {
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const pdfDoc = await PDFDocument.create();
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    let page, y;
+    const now = new Date();
+    const nowStr = now.toLocaleDateString("nl-NL") + " " + now.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+
+    const rows = linesToRows(lineArr);
+    const dates = lineArr.map((l) => l.datum).filter(Boolean).sort();
+    const periode = dates.length ? (fmtDateNL(dates[0]) + " t/m " + fmtDateNL(dates[dates.length - 1])) : "-";
+
+    function drawTableHeaderRow() {
+      page.drawRectangle({ x: MARGIN, y: y - 4, width: PAGE_W - MARGIN * 2, height: 15, color: rgb(0.93, 0.93, 0.93) });
+      const cols = [["Datum", COL.datum], ["Postcode", COL.pc1], ["Van plaats", COL.van], ["Postcode", COL.pc2], ["Naar plaats", COL.naar], ["Activiteiten", COL.act], ["Rit", COL.rit], ["Km", COL.km]];
+      cols.forEach(([label, x]) => page.drawText(label, { x, y, size: 8, font: fontBold, color: rgb(0.1, 0.1, 0.1) }));
+      y -= 16;
+    }
+
+    function newPage(withHeaderBlock) {
+      page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      y = PAGE_H - MARGIN;
+      if (withHeaderBlock) {
+        page.drawText("KILOMETERDECLARATIE", { x: MARGIN, y, size: 16, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+        y -= 24;
+        const infoLines = [
+          ["Naam:", header.naam || "-"],
+          ["Kenteken:", header.kenteken || "-"],
+          ["IBAN:", header.iban || "-"],
+          ["Periode:", periode],
+          ["Ingediend op:", nowStr],
+        ];
+        const infoValueX = MARGIN + Math.max(...infoLines.map(([label]) => fontBold.widthOfTextAtSize(label, 10))) + 14;
+        infoLines.forEach(([label, value]) => {
+          page.drawText(label, { x: MARGIN, y, size: 10, font: fontBold, color: rgb(0.3, 0.3, 0.3) });
+          page.drawText(value, { x: infoValueX, y, size: 10, font, color: rgb(0, 0, 0) });
+          y -= 15;
+        });
+        y -= 8;
+      } else {
+        page.drawText(`Kilometerdeclaratie ${header.naam}`.trim() + " — vervolg", { x: MARGIN, y, size: 12, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+        y -= 20;
+      }
+      drawTableHeaderRow();
+    }
+
+    newPage(true);
+    const ROW_H = 15;
+
+    rows.forEach((row) => {
+      if (y < MARGIN + 60) newPage(false);
+      page.drawText(fmtDateNL(row.datum), { x: COL.datum, y, size: 8, font, color: rgb(0, 0, 0) });
+      page.drawText(row.vanPc || "-", { x: COL.pc1, y, size: 8, font, color: rgb(0, 0, 0) });
+      page.drawText(truncate(row.vanPlaats, 16), { x: COL.van, y, size: 8, font, color: rgb(0, 0, 0) });
+      page.drawText(row.naarPc || "-", { x: COL.pc2, y, size: 8, font, color: rgb(0, 0, 0) });
+      page.drawText(truncate(row.naarPlaats, 16), { x: COL.naar, y, size: 8, font, color: rgb(0, 0, 0) });
+      page.drawText(truncate(row.activiteiten, 18), { x: COL.act, y, size: 8, font, color: rgb(0, 0, 0) });
+      page.drawText(row.type, { x: COL.rit, y, size: 8, font, color: rgb(0, 0, 0) });
+      page.drawText(String(row.km), { x: COL.km, y, size: 8, font, color: rgb(0, 0, 0) });
+      y -= ROW_H;
+    });
+
+    if (y < MARGIN + 60) newPage(false);
+    y -= 8;
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+    y -= 18;
+
+    const totalKm = rows.reduce((sum, r) => sum + r.km, 0);
+    page.drawText("Totaal", { x: MARGIN, y, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+    page.drawText(String(totalKm) + " km", { x: COL.km, y, size: 9, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+    y -= 22;
+
+    if (y < MARGIN + 90) newPage(false);
+    const v = computeVergoeding(totalKm);
+    const vergoedingRows = [
+      ["Belastingvrij", v.belastingvrij, font, 9],
+      ["Belast", v.belast, font, 9],
+      ["Totaal (uit te betalen)", v.totaal, fontBold, 10],
+    ];
+    vergoedingRows.forEach(([label, bedrag, f, size]) => {
+      page.drawText(label, { x: MARGIN, y, size, font: f, color: rgb(0.1, 0.1, 0.1) });
+      page.drawText("€ " + bedrag.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { x: COL.km, y, size, font: f, color: rgb(0.1, 0.1, 0.1) });
+      y -= size + 8;
+    });
+    y -= 4;
+    page.drawText(
+      `Tarief onbelast € ${TARIEF_ONBELAST.toFixed(2)}/km, totaal € ${TARIEF_TOTAAL.toFixed(2)}/km.`,
+      { x: MARGIN, y, size: 7, font, color: rgb(0.5, 0.5, 0.5) }
+    );
+
+    return pdfDoc.save();
+  }
+
+  function buildFilename(header) {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const datePart = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const timePart = `${pad(d.getHours())}${pad(d.getMinutes())}`;
+    const naamPart = FileHelpers.sanitizeForFilename(header.naam);
+    return `km_${d.getFullYear()}_${naamPart}_${datePart}_${timePart}.pdf`;
+  }
+
+  // ---------- Openstaande declaraties / instellingen ----------
+  const openstaand = createOpenstaandList({
+    syncClient: dbx,
+    cardId: "openstaandCard",
+    listId: "openstaandList",
+    statusId: "openstaandStatus",
+    refreshBtnId: "refreshOpenstaandBtn",
+    openFolderBtnId: "openFolderBtn",
+    emptyText: "Geen openstaande kilometerdeclaraties.",
+    shareText: "Kilometerdeclaratie voor administratie",
+    pageSize: 5,
+  });
+
+  const settingsPanel = initSettingsPanel({ onAfterClose: () => openstaand.refresh() });
+
+  // ---------- Submit ----------
+  document.getElementById("submitBtn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("status");
+    const header = collectHeader();
+
+    if (!header.naam) return setStatus(statusEl, "err", "Vul in wie de kilometerdeclaratie indient.");
+    if (!header.kenteken) return setStatus(statusEl, "err", "Vul het kenteken in.");
+    if (!header.iban) return setStatus(statusEl, "err", "Vul het IBAN in.");
+
+    const lineArr = Array.from(lines.values()).filter(
+      (l) => l.datum && l.vanPlaats.trim() && l.naarPlaats.trim() && Number(l.km) > 0
+    );
+    if (!lineArr.length) return setStatus(statusEl, "err", "Voeg minstens één rit toe met datum, van/naar plaats en kilometers.");
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    setStatus(statusEl, "info", "PDF wordt gemaakt...");
+
+    try {
+      const pdfBytes = await buildKmPdf({ header, lineArr });
+      const filename = buildFilename(header);
+
+      if (DropboxAuth.isConnected()) {
+        setStatus(statusEl, "info", "PDF wordt opgeslagen in Dropbox...");
+        await dbx.upload(filename, pdfBytes);
+        setStatus(statusEl, "ok", "Opgeslagen in Dropbox als " + filename);
+        openstaand.refresh();
+      } else {
+        const blob = new Blob([pdfBytes], { type: "application/pdf" });
+        const outcome = await FileHelpers.shareOrDownload(filename, blob, "Kilometerdeclaratie voor administratie");
+        if (outcome === "cancelled") {
+          setStatus(statusEl, "err", "Delen geannuleerd — de PDF is niet opgeslagen. Probeer het opnieuw.");
+          return;
+        }
+        const verb = outcome === "shared" ? "gedeeld" : "lokaal gedownload";
+        setStatus(statusEl, "ok", "PDF is " + verb + ": " + filename + ". Verbind eventueel via het tandwiel-icoon met Dropbox om declaraties automatisch te bewaren.");
+      }
+
+      saveIfNew(LS_NAMEN, header.naam);
+      saveIfNew(LS_KENTEKENS, header.kenteken);
+      saveIfNew(LS_IBANS, header.iban);
+      lineArr.forEach((l) => {
+        if (l.vanPostcode && l.vanPlaats) {
+          localStorage.setItem(LS_VAN_POSTCODE, l.vanPostcode);
+          localStorage.setItem(LS_VAN_PLAATS, l.vanPlaats);
+        }
+        if (l.bestemming && l.naarPostcode && l.naarPlaats && l.km) {
+          saveBestemming(l.bestemming.trim(), l.naarPostcode, l.naarPlaats, l.km);
+        }
+      });
+      renderAllDatalists();
+      resetForm();
+    } catch (e) {
+      console.error(e);
+      setStatus(statusEl, "err", e.message || "Er ging iets mis.");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- Init ----------
+  (async function init() {
+    renderAllDatalists();
+    addLine();
+    await DropboxAuth.finishAuthIfRedirected();
+    settingsPanel.updateStatusUI();
+    openstaand.refresh();
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+  })();
+})();
+</script>

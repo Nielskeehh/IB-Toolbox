@@ -1,0 +1,216 @@
+<title>Reglementen · IB Toolbox</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#ffc700" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="shared/style.css" />
+<link rel="apple-touch-icon" href="icon-reglementen-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<script>window.CURRENT_TOOL = "reglementen";</script>
+<style>
+  header { justify-content: flex-start; }
+  header h1 { flex: 0 0 auto; text-align: left; margin-left: 6px; }
+  .search-wrap { position: relative; margin-bottom: 12px; }
+  .search-wrap input {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+    font-size: 16px; font-family: inherit; margin-bottom: 0; background: white;
+  }
+  .doc-filter {
+    position: relative; display: flex; background: var(--bg); border-radius: 10px;
+    padding: 3px; margin-bottom: 16px;
+  }
+  .doc-filter .thumb {
+    position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(33.333% - 3px);
+    background: var(--brand); border-radius: 8px; transition: transform 0.2s ease;
+  }
+  .doc-filter[data-index="1"] .thumb { transform: translateX(100%); }
+  .doc-filter[data-index="2"] .thumb { transform: translateX(200%); }
+  .doc-filter button {
+    position: relative; z-index: 1; flex: 1; background: none; border: none;
+    padding: 10px 4px; font-weight: 600; font-size: 13px; cursor: pointer; color: var(--muted);
+  }
+  .doc-filter button.active { color: var(--brand-text); }
+  .status-line { font-size: 13px; color: var(--muted); margin: 0 0 16px; }
+  .result-group { margin-bottom: 18px; }
+  .result-group-title {
+    font-weight: 700; font-size: 13px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.03em; margin-bottom: 4px;
+  }
+  .result-item {
+    display: block; padding: 12px 0; border-bottom: 1px solid var(--border);
+    text-decoration: none; color: var(--text);
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-item .result-page { font-size: 12px; font-weight: 700; color: var(--brand-text); margin-bottom: 4px; }
+  .result-item .result-snippet { font-size: 14px; line-height: 1.45; color: var(--text); }
+  .result-item mark { background: var(--brand); color: var(--brand-text); padding: 0 2px; border-radius: 3px; }
+</style>
+
+<header>
+  <button type="button" id="navBtn" title="Menu" aria-label="Menu">&#9776;</button>
+  <h1>Reglementen</h1>
+</header>
+
+<main>
+  <div class="card">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Zoek op trefwoord, bijv. vakantiedagen" autocomplete="off" disabled />
+    </div>
+    <div class="doc-filter" id="docFilter" data-index="0">
+      <div class="thumb"></div>
+      <button type="button" class="f-filter-btn active" data-key="all">Alles</button>
+      <button type="button" class="f-filter-btn" data-key="reglement">Bedrijfsreglement</button>
+      <button type="button" class="f-filter-btn" data-key="cao">CAO</button>
+    </div>
+    <div class="status-line" id="statusLine">Documenten worden geladen...</div>
+    <div id="resultsContainer"></div>
+  </div>
+</main>
+
+<script src="pdf.min.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "pdf.worker.min.js";
+
+  const DOCS = {
+    reglement: { label: "Bedrijfsreglement", file: "bedrijfsreglement.pdf", pages: null },
+    cao: { label: "CAO", file: "cao.pdf", pages: null },
+  };
+
+  let activeFilter = "all";
+  let searchInput, statusLine, resultsContainer;
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  async function loadDoc(key) {
+    const doc = DOCS[key];
+    const pdf = await pdfjsLib.getDocument(doc.file).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const text = content.items.map((it) => it.str).join(" ");
+      pages.push({ page: i, text });
+    }
+    doc.pages = pages;
+  }
+
+  function updateStatusLine() {
+    const parts = Object.values(DOCS)
+      .filter((d) => d.pages)
+      .map((d) => `${d.label} (${d.pages.length} pagina's)`);
+    statusLine.textContent = parts.length
+      ? parts.join(" · ") + " doorzoekbaar."
+      : "Documenten worden geladen...";
+  }
+
+  function buildSnippet(text, idx, matchLen, radius) {
+    const start = Math.max(0, idx - radius);
+    const end = Math.min(text.length, idx + matchLen + radius);
+    const before = escapeHtml(text.slice(start, idx));
+    const match = escapeHtml(text.slice(idx, idx + matchLen));
+    const after = escapeHtml(text.slice(idx + matchLen, end));
+    return (start > 0 ? "…" : "") + before + "<mark>" + match + "</mark>" + after + (end < text.length ? "…" : "");
+  }
+
+  function searchDoc(pages, query) {
+    const q = query.toLowerCase();
+    const results = [];
+    pages.forEach((p) => {
+      const lower = p.text.toLowerCase();
+      let from = 0, count = 0;
+      while (count < 3) {
+        const found = lower.indexOf(q, from);
+        if (found === -1) break;
+        results.push({ page: p.page, snippet: buildSnippet(p.text, found, q.length, 60) });
+        from = found + q.length;
+        count++;
+      }
+    });
+    return results;
+  }
+
+  function activeDocKeys() {
+    if (activeFilter === "all") return Object.keys(DOCS);
+    return [activeFilter];
+  }
+
+  function performSearch() {
+    const query = searchInput.value.trim();
+    if (query.length < 2) {
+      resultsContainer.innerHTML = query.length === 0
+        ? '<div class="empty-hint">Typ een trefwoord om te zoeken in het bedrijfsreglement en de CAO.</div>'
+        : '<div class="empty-hint">Typ nog een letter…</div>';
+      return;
+    }
+
+    const groups = [];
+    activeDocKeys().forEach((key) => {
+      const doc = DOCS[key];
+      if (!doc.pages) return;
+      const results = searchDoc(doc.pages, query);
+      if (results.length) groups.push({ key, label: doc.label, file: doc.file, results });
+    });
+
+    if (!groups.length) {
+      resultsContainer.innerHTML = '<div class="empty-hint">Geen treffers voor "' + escapeHtml(query) + '".</div>';
+      return;
+    }
+
+    resultsContainer.innerHTML = groups.map((g) => {
+      const items = g.results.map((r) =>
+        '<a class="result-item" href="' + g.file + "#page=" + r.page + '" target="_blank" rel="noopener">' +
+        '<div class="result-page">Pagina ' + r.page + "</div>" +
+        '<div class="result-snippet">' + r.snippet + "</div>" +
+        "</a>"
+      ).join("");
+      return (
+        '<div class="result-group">' +
+        '<div class="result-group-title">' + g.label + " — " + g.results.length + " treffer" + (g.results.length === 1 ? "" : "s") + "</div>" +
+        items +
+        "</div>"
+      );
+    }).join("");
+  }
+
+  document.getElementById("docFilter").addEventListener("click", (e) => {
+    const btn = e.target.closest(".f-filter-btn");
+    if (!btn) return;
+    activeFilter = btn.dataset.key;
+    const container = document.getElementById("docFilter");
+    const buttons = [...container.querySelectorAll(".f-filter-btn")];
+    container.dataset.index = String(buttons.indexOf(btn));
+    buttons.forEach((b) => b.classList.toggle("active", b === btn));
+    performSearch();
+  });
+
+  // ---------- Init ----------
+  (async function init() {
+    searchInput = document.getElementById("searchInput");
+    statusLine = document.getElementById("statusLine");
+    resultsContainer = document.getElementById("resultsContainer");
+    resultsContainer.innerHTML = '<div class="empty-hint">Typ een trefwoord om te zoeken in het bedrijfsreglement en de CAO.</div>';
+
+    searchInput.addEventListener("input", performSearch);
+
+    try {
+      await Promise.all(Object.keys(DOCS).map((key) => loadDoc(key).then(updateStatusLine)));
+      searchInput.disabled = false;
+      searchInput.focus();
+    } catch (e) {
+      console.error(e);
+      statusLine.textContent = "Kon de documenten niet laden: " + (e.message || e);
+    }
+
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+  })();
+})();
+</script>
