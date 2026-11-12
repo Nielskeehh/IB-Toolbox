@@ -100,7 +100,8 @@ input[type=text], input[type=number], input[type=date], input[list], select, tex
 input[type=file] { display: none; }
 .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .card-header label { margin-bottom: 0; }
-.link-btn { background: none; border: none; color: var(--brand-text); font-weight: 600; font-size: 14px; cursor: pointer; padding: 0; text-decoration: underline; }
+.link-btn { background: none; border: none; color: var(--brand-text); font-weight: 600; font-size: 14px; cursor: pointer; padding: 0; text-decoration: underline; white-space: nowrap; }
+input[type=date] { -webkit-appearance: none; appearance: none; min-height: 44px; }
 .bon-item {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 10px 0; border-bottom: 1px solid var(--border);

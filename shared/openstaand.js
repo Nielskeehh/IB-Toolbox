@@ -6,7 +6,9 @@
     el.textContent = msg;
   }
 
-  function createOpenstaandList({ syncClient, cardId, listId, statusId, refreshBtnId, openFolderBtnId, emptyText, shareText, pageSize }) {
+  // shareMeta (optioneel): functie(bestandsnaam) -> { title, text } voor een eigen mail-onderwerp/-tekst;
+  // zonder shareMeta gelden de bestandsnaam als onderwerp en shareText als tekst.
+  function createOpenstaandList({ syncClient, cardId, listId, statusId, refreshBtnId, openFolderBtnId, emptyText, shareText, shareMeta, pageSize }) {
     let files = [];
     let visibleCount = 0;
     const size = pageSize || 5;
@@ -52,13 +54,23 @@
         const row = document.createElement("div");
         row.className = "bon-item";
         const datum = new Date(file.client_modified).toLocaleDateString("nl-NL");
-        row.innerHTML =
-          '<div><div class="name">' + file.name + '</div><div class="meta">' + datum + "</div></div>" +
-          '<div class="actions">' +
+        // Bestandsnaam via textContent: de naam kan door gebruikers ingevulde tekst bevatten.
+        const info = document.createElement("div");
+        const nameEl = document.createElement("div");
+        nameEl.className = "name";
+        nameEl.textContent = file.name;
+        const metaEl = document.createElement("div");
+        metaEl.className = "meta";
+        metaEl.textContent = datum;
+        info.append(nameEl, metaEl);
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        actions.innerHTML =
           (shareSupported ? '<button type="button" class="btn btn-outline share-btn">Delen</button>' : "") +
           '<button type="button" class="btn btn-outline download-btn">Downloaden</button>' +
-          '<button type="button" class="btn btn-outline sent-btn">Verzonden</button>' +
-          "</div>";
+          '<button type="button" class="btn btn-outline sent-btn">Verzonden</button>';
+        row.append(info, actions);
 
         function setBusy(busy) {
           row.querySelectorAll("button").forEach((b) => (b.disabled = busy));
@@ -76,7 +88,8 @@
             setBusy(true);
             try {
               const blob = await syncClient.downloadBytes(file.path_lower);
-              await FileHelpers.shareOrDownload(file.name, blob, shareText);
+              const meta = shareMeta ? shareMeta(file.name) : null;
+              await FileHelpers.shareOrDownload(file.name, blob, meta ? meta.text : shareText, meta ? meta.title : undefined);
             } catch (err) {
               console.error(err);
               setStatus(statusEl, "err", err.message || "Delen mislukt.");

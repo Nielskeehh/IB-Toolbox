@@ -22,11 +22,11 @@
     a.remove();
   }
 
-  async function shareOrDownload(filename, blob, shareText) {
+  async function shareOrDownload(filename, blob, shareText, shareTitle) {
     const file = new File([blob], filename, { type: "application/pdf" });
     if (canShareFiles(file)) {
       try {
-        await navigator.share({ files: [file], title: filename, text: shareText || "" });
+        await navigator.share({ files: [file], title: shareTitle || filename, text: shareText || "" });
         return "shared";
       } catch (e) {
         if (e.name === "AbortError") return "cancelled";

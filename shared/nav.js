@@ -8,6 +8,7 @@
     { id: "bonnetjes", href: "./bonnetjes.html", label: "Bonnetjes", icon: "icon-bonnetjes-192.png" },
     { id: "declaraties", href: "./declaraties.html", label: "Declaraties", icon: "icon-declaraties-192.png" },
     { id: "kilometers", href: "./kilometers.html", label: "Kilometers", icon: "icon-kilometers-192.png" },
+    { id: "stortingen", href: "./stortingen.html", label: "Stortingen", icon: "icon-stortingen-192.png" },
     { id: "reglementen", href: "./reglementen.html", label: "Reglementen", icon: "icon-reglementen-192.png" },
   ];
 

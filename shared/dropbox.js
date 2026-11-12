@@ -148,6 +148,12 @@
     return data;
   }
 
+  // Dropbox-API-Arg is een HTTP-header en moet ASCII zijn: niet-ASCII tekens (bv. é in
+  // een naam of vestiging) als \uXXXX schrijven, anders weigert de browser de header.
+  function apiArg(obj) {
+    return JSON.stringify(obj).replace(/[\u007f-￿]/g, (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
+  }
+
   function createSyncClient({ folder }) {
     const sentFolder = folder + "/Verzonden";
     const folderLinkKey = "db_folder_link:" + folder;
@@ -158,7 +164,7 @@
         method: "POST",
         headers: {
           "Authorization": "Bearer " + token,
-          "Dropbox-API-Arg": JSON.stringify({
+          "Dropbox-API-Arg": apiArg({
             path: folder + "/" + filename,
             mode: "add",
             autorename: true,
@@ -222,7 +228,7 @@
         method: "POST",
         headers: {
           "Authorization": "Bearer " + token,
-          "Dropbox-API-Arg": JSON.stringify({ path }),
+          "Dropbox-API-Arg": apiArg({ path }),
         },
       });
       if (!resp.ok) throw new Error("Downloaden vanuit Dropbox mislukt.");
