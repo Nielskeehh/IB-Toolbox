@@ -1,4 +1,4 @@
-const CACHE_NAME = "ib-toolbox-v2";
+const CACHE_NAME = "ib-toolbox-v3";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -33,6 +33,7 @@ const SHELL_FILES = [
   "./shared/crop.js",
   "./shared/file-helpers.js",
   "./shared/openstaand.js",
+  "./shared/geschiedenis.js",
   "./shared/settings.js"
 ];
 

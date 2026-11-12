@@ -88,6 +88,14 @@
     <div id="openstaandList"><div class="empty-hint">Laden...</div></div>
     <div class="status" id="openstaandStatus"></div>
   </div>
+  <div class="card" id="geschiedenisCard">
+    <div class="card-header">
+      <label style="margin-bottom:0;">Geschiedenis</label>
+    </div>
+    <div class="hint" style="margin-top:0;">Alle bonnetjes van de afgelopen 90 dagen, bewaard op dit toestel.</div>
+    <div id="geschiedenisList"><div class="empty-hint">Laden...</div></div>
+    <div class="status" id="geschiedenisStatus"></div>
+  </div>
 </main>
 
 <div class="modal-overlay" id="settingsOverlay">
@@ -130,6 +138,7 @@
 <script src="shared/file-helpers.js"></script>
 <script src="shared/crop.js"></script>
 <script src="shared/openstaand.js"></script>
+<script src="shared/geschiedenis.js"></script>
 <script src="shared/settings.js"></script>
 <script src="shared/nav.js"></script>
 <script>
@@ -353,6 +362,16 @@
 
   const settingsPanel = initSettingsPanel({ onAfterClose: () => openstaand.refresh() });
 
+  // ---------- Geschiedenis op dit toestel (90 dagen) ----------
+  const geschiedenis = createGeschiedenis({
+    dbName: "bonnetjes",
+    listId: "geschiedenisList",
+    statusId: "geschiedenisStatus",
+    emptyText: "Nog geen bonnetjes.",
+    shareText: "Bonnetje voor administratie",
+    pageSize: 5,
+  });
+
   // ---------- Submit ----------
   document.getElementById("submitBtn").addEventListener("click", async () => {
     const statusEl = document.getElementById("status");
@@ -375,6 +394,10 @@
     try {
       const pdfBytes = await buildPdf({ afzender, kostenplaats, zakelijk: zakelijkValue, leverancier, omschrijving, file: selectedFile });
       const filename = buildFilename({ afzender, zakelijk: zakelijkValue, leverancier });
+      const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+
+      // Altijd eerst op dit toestel bewaren; Dropbox is een extra zekerheid.
+      await geschiedenis.bewaar(filename, pdfBlob);
 
       if (DropboxAuth.isConnected()) {
         setStatus(statusEl, "info", "PDF wordt opgeslagen in Dropbox...");
@@ -382,14 +405,13 @@
         setStatus(statusEl, "ok", "Opgeslagen in Dropbox als " + filename);
         openstaand.refresh();
       } else {
-        const blob = new Blob([pdfBytes], { type: "application/pdf" });
-        const outcome = await FileHelpers.shareOrDownload(filename, blob, "Bonnetje voor administratie");
+        const outcome = await FileHelpers.shareOrDownload(filename, pdfBlob, "Bonnetje voor administratie");
         if (outcome === "cancelled") {
-          setStatus(statusEl, "err", "Delen geannuleerd — de PDF is niet opgeslagen. Probeer het opnieuw.");
-          return;
+          setStatus(statusEl, "err", "Delen geannuleerd — de PDF staat in de geschiedenis hieronder, je kunt hem daar opnieuw delen.");
+        } else {
+          const verb = outcome === "shared" ? "gedeeld" : "lokaal gedownload";
+          setStatus(statusEl, "ok", "PDF is " + verb + ": " + filename + ". Verbind eventueel via het tandwiel-icoon met Dropbox om bonnetjes automatisch te bewaren.");
         }
-        const verb = outcome === "shared" ? "gedeeld" : "lokaal gedownload";
-        setStatus(statusEl, "ok", "PDF is " + verb + ": " + filename + ". Verbind eventueel via het tandwiel-icoon met Dropbox om bonnetjes automatisch te bewaren.");
       }
 
       saveIfNew(LS_NAMEN, afzender);
@@ -418,6 +440,7 @@
     await DropboxAuth.finishAuthIfRedirected();
     settingsPanel.updateStatusUI();
     openstaand.refresh();
+    await geschiedenis.init();
     if (navigator.serviceWorker) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
     }
