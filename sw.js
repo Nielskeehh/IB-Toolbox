@@ -1,10 +1,11 @@
-const CACHE_NAME = "ib-toolbox-v1";
+const CACHE_NAME = "ib-toolbox-v2";
 const SHELL_FILES = [
   "./",
   "./index.html",
   "./bonnetjes.html",
   "./declaraties.html",
   "./kilometers.html",
+  "./stortingen.html",
   "./reglementen.html",
   "./manifest.json",
   "./pdf-lib.min.js",
@@ -20,6 +21,8 @@ const SHELL_FILES = [
   "./icon-declaraties-512.png",
   "./icon-kilometers-192.png",
   "./icon-kilometers-512.png",
+  "./icon-stortingen-192.png",
+  "./icon-stortingen-512.png",
   "./icon-reglementen-192.png",
   "./icon-reglementen-512.png",
   // let op: bedrijfsreglement.pdf en cao.pdf bewust NIET hier — die moeten

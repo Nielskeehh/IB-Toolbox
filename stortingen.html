@@ -1,0 +1,513 @@
+<title>Stortingen · IB Toolbox</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#ffc700" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="shared/style.css" />
+<link rel="stylesheet" href="cropper.min.css" />
+<link rel="apple-touch-icon" href="icon-stortingen-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<script>window.CURRENT_TOOL = "stortingen";</script>
+<style>
+  .preview { margin-top: 10px; }
+  .preview img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+  .preview .filelabel { font-size: 14px; color: var(--muted); padding: 8px; border: 1px dashed var(--border); border-radius: 8px; }
+</style>
+
+<header>
+  <button type="button" id="navBtn" title="Menu" aria-label="Menu">&#9776;</button>
+  <h1>Stortingen</h1>
+  <button type="button" id="settingsBtn" title="Instellingen" aria-label="Instellingen">&#9881;</button>
+</header>
+
+<main>
+  <div class="card">
+    <label>Stortingsbewijs</label>
+    <div class="file-buttons">
+      <button type="button" class="btn btn-outline" id="cameraBtn">Foto maken</button>
+      <button type="button" class="btn btn-outline" id="fileBtn">Bestand kiezen</button>
+    </div>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" />
+    <input type="file" id="fileInput" accept="image/*,application/pdf" />
+    <div class="preview" id="preview"></div>
+  </div>
+
+  <div class="card">
+    <label for="afzender"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>Van</label>
+    <input type="text" id="afzender" list="namenlijst" placeholder="Bijv. Jan Jansen" autocomplete="off" />
+    <datalist id="namenlijst"></datalist>
+
+    <label for="vestiging"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"></rect><path d="M9 21v-4h6v4"></path><path d="M9 8h1M14 8h1M9 12h1M14 12h1"></path></svg>Vestiging</label>
+    <input type="text" id="vestiging" list="vestigingenlijst" placeholder="Bijv. Utrecht" autocomplete="off" style="margin-bottom:6px;" />
+    <div class="hint" style="margin-top:0;">Vestiging waarvoor de storting is gedaan.</div>
+    <datalist id="vestigingenlijst"></datalist>
+
+    <label for="datum"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Datum storting</label>
+    <input type="date" id="datum" />
+
+    <button type="button" class="btn btn-primary" id="submitBtn">Versturen</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card" id="openstaandCard" style="display:none;">
+    <div class="card-header">
+      <label style="margin-bottom:0;">Openstaande stortingen</label>
+      <div style="display:flex; gap:14px;">
+        <button type="button" class="link-btn" id="openFolderBtn">Open map ↗</button>
+        <button type="button" class="link-btn" id="refreshOpenstaandBtn">Vernieuwen</button>
+      </div>
+    </div>
+    <div id="openstaandList"><div class="empty-hint">Laden...</div></div>
+    <div class="status" id="openstaandStatus"></div>
+  </div>
+
+  <div class="card" id="geschiedenisCard">
+    <div class="card-header">
+      <label style="margin-bottom:0;">Geschiedenis</label>
+    </div>
+    <div class="hint" style="margin-top:0;">Alle stortingen van de afgelopen 90 dagen, bewaard op dit toestel.</div>
+    <div id="geschiedenisList"><div class="empty-hint">Laden...</div></div>
+    <div class="status" id="geschiedenisStatus"></div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="close-row"><button id="closeSettings">&times;</button></div>
+    <h2>Instellingen</h2>
+
+    <div class="dropbox-status" id="dbStatusLine">
+      <span class="dot off" id="dbDot"></span><span id="dbStatusText">Niet verbonden met Dropbox</span>
+    </div>
+
+    <label for="appKeyInput">Dropbox App key</label>
+    <input type="text" id="appKeyInput" placeholder="App key uit de Dropbox App Console" autocomplete="off" />
+    <div class="hint">Ga naar de Dropbox App Console, maak een Scoped App (Folder access), zet onder "Permissions" deze vijf vinkjes aan: files.content.write, files.content.read, files.metadata.read, sharing.write, sharing.read — en zet de redirect URI exact op dit adres. Al eerder verbonden met minder rechten? Vink de nieuwe rechten aan en klik hieronder op "Loskoppelen" gevolgd door opnieuw "Verbinden" — rechten worden pas bij het verbinden vastgelegd. Deze koppeling geldt voor alle tools in IB Toolbox samen.</div>
+
+    <button type="button" class="btn btn-outline" id="connectBtn" style="width:100%; margin-bottom:10px;">Verbinden met Dropbox</button>
+    <button type="button" class="btn btn-danger" id="disconnectBtn" style="width:100%; display:none;">Loskoppelen</button>
+
+    <div class="status" id="settingsStatus"></div>
+  </div>
+</div>
+
+<div class="modal-overlay crop-modal" id="cropOverlay">
+  <div class="modal">
+    <h2>Stortingsbewijs bijsnijden</h2>
+    <div class="crop-container">
+      <img id="cropImage" alt="Stortingsbewijs" />
+    </div>
+    <div class="crop-actions">
+      <button type="button" class="btn btn-outline" id="cropCancelBtn">Annuleren</button>
+      <button type="button" class="btn btn-outline" id="cropSkipBtn">Hele foto gebruiken</button>
+      <button type="button" class="btn btn-primary" id="cropApplyBtn">Bijsnijden</button>
+    </div>
+  </div>
+</div>
+
+<script src="pdf-lib.min.js"></script>
+<script src="cropper.min.js"></script>
+<script src="shared/dropbox.js"></script>
+<script src="shared/file-helpers.js"></script>
+<script src="shared/crop.js"></script>
+<script src="shared/openstaand.js"></script>
+<script src="shared/settings.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // Naam- en vestigingenlijst worden gedeeld met de andere tools (zelfde begrippen).
+  const LS_NAMEN = "ib_namen";
+  const LS_VESTIGINGEN = "ib_kostenplaatsen";
+  const DROPBOX_FOLDER = "/Stortingen";
+  const PAGE_SIZE = 5;
+  const dbx = createDropboxSyncClient({ folder: DROPBOX_FOLDER });
+
+  // ---------- Onthouden lijsten (namen + vestigingen) ----------
+  function getLijst(key, standaard) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(raw) && raw.length ? raw : standaard;
+    } catch (e) {
+      return standaard;
+    }
+  }
+  function saveInLijstIfNew(key, standaard, waarde) {
+    if (!waarde) return;
+    const lijst = getLijst(key, standaard);
+    const exists = lijst.some((x) => x.toLowerCase() === waarde.toLowerCase());
+    if (!exists) {
+      lijst.push(waarde);
+      localStorage.setItem(key, JSON.stringify(lijst));
+    }
+  }
+  function renderLijst(key, standaard, datalistId) {
+    const dl = document.getElementById(datalistId);
+    dl.innerHTML = "";
+    getLijst(key, standaard).forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      dl.appendChild(opt);
+    });
+  }
+  const renderNamenlijst = () => renderLijst(LS_NAMEN, ["Niels"], "namenlijst");
+  const renderVestigingenlijst = () => renderLijst(LS_VESTIGINGEN, [], "vestigingenlijst");
+
+  // ---------- Datum ----------
+  function vandaagIso() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function isoNaarNl(iso) {
+    const [y, m, d] = iso.split("-");
+    return `${d}-${m}-${y}`;
+  }
+
+  // ---------- Status helper ----------
+  function setStatus(el, type, msg) {
+    el.className = "status" + (type ? " " + type : "");
+    el.textContent = msg;
+  }
+
+  // ---------- Bestand kiezen + bijsnijden ----------
+  let selectedFile = null;
+
+  document.getElementById("cameraBtn").addEventListener("click", () => document.getElementById("cameraInput").click());
+  document.getElementById("fileBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+
+  function showPreview(file) {
+    const preview = document.getElementById("preview");
+    preview.innerHTML = "";
+    if (file.type.startsWith("image/")) {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      preview.appendChild(img);
+    } else {
+      const div = document.createElement("div");
+      div.className = "filelabel";
+      div.textContent = "Bestand: " + file.name;
+      preview.appendChild(div);
+    }
+  }
+
+  const cropController = createCropController({
+    overlayId: "cropOverlay",
+    imageId: "cropImage",
+    cancelBtnId: "cropCancelBtn",
+    skipBtnId: "cropSkipBtn",
+    applyBtnId: "cropApplyBtn",
+    onClose: () => {
+      document.getElementById("cameraInput").value = "";
+      document.getElementById("fileInput").value = "";
+    },
+  });
+
+  function handleFile(file) {
+    if (!file) return;
+    if (file.type.startsWith("image/")) {
+      cropController.open(file, null, (croppedFile) => {
+        selectedFile = croppedFile;
+        showPreview(selectedFile);
+      });
+    } else {
+      selectedFile = file;
+      showPreview(file);
+    }
+  }
+  document.getElementById("cameraInput").addEventListener("change", (e) => handleFile(e.target.files[0]));
+  document.getElementById("fileInput").addEventListener("change", (e) => handleFile(e.target.files[0]));
+
+  // ---------- Titel: zelfde waarde voor onderwerp, bestandsnaam en tekst ----------
+  function buildTitel({ afzender, vestiging, datum }) {
+    return "Geldstorting " + afzender + " " + vestiging + " " + isoNaarNl(datum);
+  }
+
+  function buildFilename(titel) {
+    // tekens die niet in een bestandsnaam mogen eruit; spaties blijven
+    return titel.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim() + ".pdf";
+  }
+
+  // Bij delen: onderwerp = tekst = bestandsnaam zonder .pdf
+  const titelVanBestand = (filename) => filename.replace(/\.pdf$/i, "");
+  const shareMeta = (filename) => {
+    const t = titelVanBestand(filename);
+    return { title: t, text: t };
+  };
+
+  // ---------- PDF opbouwen ----------
+  async function buildPdf({ afzender, vestiging, datum, file }) {
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    const pageWidth = 595.28;
+    const pageHeight = 841.89;
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+    const margin = 40;
+    let y = pageHeight - margin;
+
+    page.drawText("Geldstorting", { x: margin, y, size: 18, font, color: rgb(0.1, 0.1, 0.1) });
+    y -= 28;
+
+    const now = new Date();
+    const ingediendStr = now.toLocaleDateString("nl-NL") + " " + now.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+
+    const lines = [
+      ["Van:", afzender || "-"],
+      ["Vestiging:", vestiging || "-"],
+      ["Datum storting:", isoNaarNl(datum)],
+      ["Ingediend op:", ingediendStr],
+    ];
+
+    for (const [label, value] of lines) {
+      page.drawText(label, { x: margin, y, size: 11, font, color: rgb(0.3, 0.3, 0.3) });
+      page.drawText(value, { x: margin + 190, y, size: 11, font: fontRegular, color: rgb(0, 0, 0) });
+      y -= 20;
+    }
+
+    y -= 10;
+    page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1, color: rgb(0.85, 0.85, 0.85) });
+    y -= 20;
+
+    const availableWidth = pageWidth - margin * 2;
+    const availableHeight = y - margin;
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+
+    if (file.type === "application/pdf") {
+      const srcDoc = await PDFDocument.load(bytes);
+      const [embeddedPage] = await pdfDoc.embedPdf(srcDoc, [0]);
+      const scale = Math.min(availableWidth / embeddedPage.width, availableHeight / embeddedPage.height, 1);
+      const w = embeddedPage.width * scale;
+      const h = embeddedPage.height * scale;
+      page.drawPage(embeddedPage, { x: margin + (availableWidth - w) / 2, y: y - h, width: w, height: h });
+    } else {
+      let img;
+      if (file.type === "image/png") img = await pdfDoc.embedPng(bytes);
+      else img = await pdfDoc.embedJpg(bytes);
+      const scale = Math.min(availableWidth / img.width, availableHeight / img.height, 1);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      page.drawImage(img, { x: margin + (availableWidth - w) / 2, y: y - h, width: w, height: h });
+    }
+
+    return pdfDoc.save();
+  }
+
+  // ---------- Openstaande stortingen (Dropbox) / instellingen ----------
+  const openstaand = createOpenstaandList({
+    syncClient: dbx,
+    cardId: "openstaandCard",
+    listId: "openstaandList",
+    statusId: "openstaandStatus",
+    refreshBtnId: "refreshOpenstaandBtn",
+    openFolderBtnId: "openFolderBtn",
+    emptyText: "Geen openstaande stortingen.",
+    shareMeta,
+    pageSize: PAGE_SIZE,
+  });
+
+  const settingsPanel = initSettingsPanel({ onAfterClose: () => openstaand.refresh() });
+
+  // ---------- Geschiedenis op dit toestel (IndexedDB, 90 dagen) ----------
+  const BEWAAR_DAGEN = 90;
+  let dbPromise = null;
+  function openDb() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open("stortingen", 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains("pdfs")) {
+          req.result.createObjectStore("pdfs", { keyPath: "id", autoIncrement: true });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return dbPromise;
+  }
+  async function dbAction(mode, fn) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("pdfs", mode);
+      const req = fn(tx.objectStore("pdfs"));
+      tx.oncomplete = () => resolve(req && "result" in req ? req.result : undefined);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+  const bewaarInGeschiedenis = (item) => dbAction("readwrite", (s) => s.add(item));
+  const alleGeschiedenis = () => dbAction("readonly", (s) => s.getAll());
+  async function ruimGeschiedenisOp() {
+    const grens = Date.now() - BEWAAR_DAGEN * 24 * 60 * 60 * 1000;
+    const oud = (await alleGeschiedenis()).filter((x) => x.aangemaakt < grens);
+    if (oud.length) await dbAction("readwrite", (s) => { oud.forEach((o) => s.delete(o.id)); });
+  }
+
+  let geschiedenisItems = [];
+  let geschiedenisVisibleCount = 0;
+
+  async function renderGeschiedenisList() {
+    const listEl = document.getElementById("geschiedenisList");
+    try {
+      geschiedenisItems = (await alleGeschiedenis()).sort((a, b) => b.aangemaakt - a.aangemaakt);
+    } catch (e) {
+      console.error(e);
+      listEl.innerHTML = '<div class="empty-hint">Geschiedenis kon niet geladen worden.</div>';
+      return;
+    }
+    geschiedenisVisibleCount = Math.min(PAGE_SIZE, geschiedenisItems.length);
+    renderGeschiedenisItems();
+  }
+
+  function renderGeschiedenisItems() {
+    const listEl = document.getElementById("geschiedenisList");
+    const statusEl = document.getElementById("geschiedenisStatus");
+
+    if (!geschiedenisItems.length) {
+      listEl.innerHTML = '<div class="empty-hint">Nog geen stortingen.</div>';
+      return;
+    }
+
+    listEl.innerHTML = "";
+    const shareSupported = FileHelpers.canShareFiles(new File([], "test.pdf", { type: "application/pdf" }));
+
+    geschiedenisItems.slice(0, geschiedenisVisibleCount).forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "bon-item";
+
+      const info = document.createElement("div");
+      const nameEl = document.createElement("div");
+      nameEl.className = "name";
+      nameEl.textContent = item.filename;
+      const metaEl = document.createElement("div");
+      metaEl.className = "meta";
+      const t = new Date(item.aangemaakt);
+      metaEl.textContent = t.toLocaleDateString("nl-NL") + " " + t.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+      info.append(nameEl, metaEl);
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      actions.innerHTML =
+        (shareSupported ? '<button type="button" class="btn btn-outline share-btn">Delen</button>' : "") +
+        '<button type="button" class="btn btn-outline download-btn">Downloaden</button>';
+      row.append(info, actions);
+
+      const shareBtn = row.querySelector(".share-btn");
+      if (shareBtn) {
+        shareBtn.addEventListener("click", async () => {
+          try {
+            const meta = shareMeta(item.filename);
+            await FileHelpers.shareOrDownload(item.filename, item.pdf, meta.text, meta.title);
+          } catch (err) {
+            console.error(err);
+            setStatus(statusEl, "err", err.message || "Delen mislukt.");
+          }
+        });
+      }
+      row.querySelector(".download-btn").addEventListener("click", () => {
+        FileHelpers.downloadBlob(item.filename, item.pdf);
+      });
+
+      listEl.appendChild(row);
+    });
+
+    if (geschiedenisVisibleCount < geschiedenisItems.length) {
+      const moreBtn = document.createElement("button");
+      moreBtn.type = "button";
+      moreBtn.className = "btn btn-outline";
+      moreBtn.style.width = "100%";
+      moreBtn.style.marginTop = "10px";
+      moreBtn.textContent = "Meer tonen (" + (geschiedenisItems.length - geschiedenisVisibleCount) + " resterend)";
+      moreBtn.addEventListener("click", () => {
+        geschiedenisVisibleCount = Math.min(geschiedenisVisibleCount + PAGE_SIZE, geschiedenisItems.length);
+        renderGeschiedenisItems();
+      });
+      listEl.appendChild(moreBtn);
+    }
+  }
+
+  // ---------- Submit ----------
+  document.getElementById("submitBtn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("status");
+    const afzender = document.getElementById("afzender").value.trim();
+    const vestiging = document.getElementById("vestiging").value.trim();
+    const datum = document.getElementById("datum").value;
+
+    if (!selectedFile) return setStatus(statusEl, "err", "Kies eerst een foto of bestand van het stortingsbewijs.");
+    if (!afzender) return setStatus(statusEl, "err", "Vul in wie de storting heeft gedaan.");
+    if (!vestiging) return setStatus(statusEl, "err", "Vul de vestiging in.");
+    if (!datum) return setStatus(statusEl, "err", "Vul de datum van de storting in.");
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    setStatus(statusEl, "info", "PDF wordt gemaakt...");
+
+    try {
+      const pdfBytes = await buildPdf({ afzender, vestiging, datum, file: selectedFile });
+      const filename = buildFilename(buildTitel({ afzender, vestiging, datum }));
+      const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+
+      // Altijd eerst op dit toestel bewaren; Dropbox is een extra zekerheid.
+      try {
+        await bewaarInGeschiedenis({ filename, pdf: pdfBlob, aangemaakt: Date.now() });
+        renderGeschiedenisList();
+      } catch (err) {
+        console.error("Bewaren in geschiedenis mislukt", err);
+      }
+
+      if (DropboxAuth.isConnected()) {
+        setStatus(statusEl, "info", "PDF wordt opgeslagen in Dropbox...");
+        await dbx.upload(filename, pdfBytes);
+        setStatus(statusEl, "ok", "Opgeslagen in Dropbox als " + filename);
+        openstaand.refresh();
+      } else {
+        const meta = shareMeta(filename);
+        const outcome = await FileHelpers.shareOrDownload(filename, pdfBlob, meta.text, meta.title);
+        if (outcome === "cancelled") {
+          setStatus(statusEl, "err", "Delen geannuleerd — de storting staat in de geschiedenis hieronder, je kunt hem daar opnieuw delen.");
+        } else {
+          const verb = outcome === "shared" ? "gedeeld" : "lokaal gedownload";
+          setStatus(statusEl, "ok", "PDF is " + verb + ": " + filename + ". Verbind eventueel via het tandwiel-icoon met Dropbox om stortingen automatisch te bewaren.");
+        }
+      }
+
+      saveInLijstIfNew(LS_NAMEN, ["Niels"], afzender);
+      renderNamenlijst();
+      saveInLijstIfNew(LS_VESTIGINGEN, [], vestiging);
+      renderVestigingenlijst();
+
+      // formulier leegmaken voor de volgende storting
+      selectedFile = null;
+      document.getElementById("preview").innerHTML = "";
+      document.getElementById("datum").value = vandaagIso();
+    } catch (e) {
+      console.error(e);
+      setStatus(statusEl, "err", e.message || "Er ging iets mis.");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- Init ----------
+  (async function init() {
+    document.getElementById("datum").value = vandaagIso();
+    renderNamenlijst();
+    renderVestigingenlijst();
+    await DropboxAuth.finishAuthIfRedirected();
+    settingsPanel.updateStatusUI();
+    openstaand.refresh();
+    try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
+    try { await ruimGeschiedenisOp(); } catch (e) { console.error(e); }
+    renderGeschiedenisList();
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+  })();
+})();
+</script>

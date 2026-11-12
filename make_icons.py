@@ -89,6 +89,24 @@ def make_reglementen_icon(size, path):
     img.save(path, "PNG")
 
 
+def make_stortingen_icon(size, path):
+    """Stortingsslip (twee regels) met munt en pijl omlaag — voor de stortingen-tool."""
+    img, d, c0, c1 = card_canvas(size)
+    card = c1 - c0
+    inset = card * 0.16
+    draw_lines(d, c0 + inset, c0 + inset, c1 - inset, c0 + inset + card * 0.22, 2, BRAND_YELLOW)
+
+    cx = c0 + card / 2
+    cy = c0 + card * 0.64
+    r = card * 0.21
+    ring_w = max(2, int(card * 0.045))
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=BRAND_YELLOW, width=ring_w)
+    # pijl omlaag in de munt
+    d.line([cx, cy - r * 0.5, cx, cy + r * 0.15], fill=BRAND_YELLOW, width=ring_w)
+    d.polygon([(cx - r * 0.42, cy + r * 0.05), (cx + r * 0.42, cy + r * 0.05), (cx, cy + r * 0.55)], fill=BRAND_YELLOW)
+    img.save(path, "PNG")
+
+
 def make_bracket_icon(size, path):
     """Hoofdicoon voor IB Toolbox: vereenvoudigde versie van het Installatiebalie-beeldmerk
     ( [ ] -haakjes ) in geel op de donkere kaart, als één polygoon per haakje (geen naden)."""
@@ -126,5 +144,6 @@ for size in (192, 512):
     make_declaraties_icon(size, f"icon-declaraties-{size}.png")
     make_kilometers_icon(size, f"icon-kilometers-{size}.png")
     make_reglementen_icon(size, f"icon-reglementen-{size}.png")
+    make_stortingen_icon(size, f"icon-stortingen-{size}.png")
 
 print("done")
